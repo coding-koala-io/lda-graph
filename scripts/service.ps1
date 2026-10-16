@@ -21,7 +21,26 @@ $serviceId = 'LdaGraph'
 $legacyServiceId = 'OptimizelyGraphLocal'
 $wrapperUrl = 'https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe'
 $wrapperSha256 = '05B82D46AD331CC16BDC00DE5C6332C1EF818DF8CEEFCD49C726553209B3A0DA'
-$repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+function Get-CanonicalPath([string]$Path) {
+    # One spelling per folder, so paths compare reliably: full path, no trailing separator, and the
+    # existing part in its long form. TEMP can be an 8.3 short path (C:\Users\RUNNER~1), which
+    # Windows PowerShell expands only when the whole path exists. Compare results with -eq/-ne
+    # (case-insensitive), never -ceq.
+    $full = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($full)
+    if ($full.Length -gt $root.Length) { $full = $full.TrimEnd('\') }
+    $existing = $full
+    $rest = @()
+    while ($existing.Length -gt $root.Length -and !(Test-Path -LiteralPath $existing)) {
+        $rest = @([IO.Path]::GetFileName($existing)) + $rest
+        $existing = [IO.Path]::GetDirectoryName($existing)
+    }
+    if ($existing.Length -gt $root.Length) { $existing = (Get-Item -LiteralPath $existing -Force).FullName.TrimEnd('\') }
+    foreach ($part in $rest) { $existing = Join-Path $existing $part }
+    return $existing
+}
+
+$repoRoot = Get-CanonicalPath (Join-Path $PSScriptRoot '..')
 if (!$PSBoundParameters.ContainsKey('RuntimeRoot')) {
     # No -RuntimeRoot given: follow an installed service to its runtime (e.g. after moving it to another drive).
     $installedService = Get-CimInstance Win32_Service -Filter "Name='$serviceId'" -ErrorAction SilentlyContinue
@@ -31,14 +50,14 @@ if (!$PSBoundParameters.ContainsKey('RuntimeRoot')) {
         $RuntimeRoot = Split-Path (Split-Path $installedExe -Parent) -Parent
     }
 }
-$RuntimeRoot = [IO.Path]::GetFullPath($RuntimeRoot)
+$RuntimeRoot = Get-CanonicalPath $RuntimeRoot
 $serviceDir = Join-Path $RuntimeRoot 'service'
 $wrapper = Join-Path $serviceDir "$serviceId.exe"
 $xmlFile = Join-Path $serviceDir "$serviceId.xml"
 $tenantsFile = Join-Path $RuntimeRoot 'tenants.json'
 $wrapperLogs = Join-Path $serviceDir 'logs'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
-if ($ImportFrom) { $ImportFrom = [IO.Path]::GetFullPath($ImportFrom) }
+if ($ImportFrom) { $ImportFrom = Get-CanonicalPath $ImportFrom }
 
 function Test-Elevated {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -57,14 +76,18 @@ function Invoke-Elevated {
     if ($RemoveData) { $call += ' -RemoveData' }
     $call += ' -ResultFile ' + (Quote-PS $resultPath)
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($call))
+    # A PSModulePath inherited from PowerShell 7 makes Windows PowerShell load 7's built-in modules and fail; the child rebuilds its own.
+    $modulePath = $env:PSModulePath
     try {
         Write-Host 'Administrator access is required. Opening the Windows UAC prompt.'
+        Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
         $child = Start-Process -FilePath (Get-SystemTool 'WindowsPowerShell\v1.0\powershell.exe') -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
         if (!(Test-Path -LiteralPath $resultPath)) { throw "Elevated process exited with code $($child.ExitCode) without a result file." }
         $result = [IO.File]::ReadAllText($resultPath) | ConvertFrom-Json
         foreach ($line in $result.output) { Write-Output $line }
         return [int]$result.exitCode
     } finally {
+        if ($null -ne $modulePath) { $env:PSModulePath = $modulePath }
         if (Test-Path -LiteralPath $resultPath) { Remove-Item -LiteralPath $resultPath -Force }
     }
 }
@@ -104,7 +127,7 @@ function Get-SystemTool([string]$Name) {
 
 function Get-SystemParentFolders {
     # Well-known system folders that may hold the runtime; accepted only when owned by SYSTEM, Administrators or TrustedInstaller.
-    return @(@($env:ProgramData, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') })
+    return @(@($env:ProgramData, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ } | ForEach-Object { Get-CanonicalPath $_ })
 }
 
 function Get-UntrustedReason([string]$Path, [switch]$SystemParent, [switch]$StrictOwner, [switch]$SkipRights, [switch]$AllowLocalServiceWrite) {
@@ -174,7 +197,7 @@ function Assert-RuntimeDescendants([switch]$SkipRights) {
     }
 }
 
-function Get-NodePath { return @(Get-Command node -CommandType Application)[0].Source }
+function Get-NodePath { return Get-CanonicalPath (@(Get-Command node -CommandType Application)[0].Source) }
 
 function Assert-TrustedNode([string]$Path) {
     # Install runs Node elevated and the service runs it as LocalService: only administrators may be able to change it.
@@ -206,7 +229,7 @@ function Assert-SelectedRuntime {
     if (!$installed) { return }
     $serviceExecutable = $installed.PathName.Trim('"')
     if ($installed.PathName -match '^"([^"]+)"') { $serviceExecutable = $Matches[1] }
-    if ([IO.Path]::GetFullPath($serviceExecutable) -ne $wrapper) {
+    if ((Get-CanonicalPath $serviceExecutable) -ne (Get-CanonicalPath $wrapper)) {
         throw "Service $serviceId belongs to another runtime: $($installed.PathName). Use its -RuntimeRoot."
     }
 }
@@ -519,8 +542,8 @@ function Invoke-CommandBody {
             if (Get-GraphService) { Invoke-Wrapper 'uninstall' } else { Write-Output 'Service is already uninstalled.' }
             if ($RemoveData) {
                 # Resolve and re-validate the explicitly selected target immediately before deleting.
-                $resolvedTarget = (Resolve-Path -LiteralPath $RuntimeRoot).ProviderPath
-                if ($resolvedTarget.TrimEnd('\') -ne $RuntimeRoot.TrimEnd('\')) { throw 'Runtime path resolution changed; refusing removal.' }
+                $resolvedTarget = Get-CanonicalPath (Resolve-Path -LiteralPath $RuntimeRoot).ProviderPath
+                if ($resolvedTarget -ne $RuntimeRoot.TrimEnd('\')) { throw 'Runtime path resolution changed; refusing removal.' }
                 Assert-SafeRemoval
                 Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
                 Write-Output "Removed runtime data: $resolvedTarget"

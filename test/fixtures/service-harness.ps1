@@ -9,6 +9,8 @@ if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
 foreach ($definition in $ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
     . ([ScriptBlock]::Create($definition.Extent.Text.Replace('$PSScriptRoot', '(Split-Path -Parent $scriptPath)')))
 }
+# Same spelling as the script uses for -RuntimeRoot (long form of an 8.3 TEMP path such as RUNNER~1).
+$RuntimeRoot = Get-CanonicalPath $RuntimeRoot
 $serviceId = 'LdaGraph'
 $legacyServiceId = 'OptimizelyGraphLocal'
 $wrapperUrl = 'https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe'
@@ -186,7 +188,7 @@ Check ($actions.IndexOf('dacl-root') -lt $actions.IndexOf('generate-tenants') -a
 Check (!$script:restrictedCalls[0].TenantsPresent) 'Root DACL was not set before tenants.json existed'
 $original = [IO.File]::ReadAllText($tenantsFile)
 [xml]$config = [IO.File]::ReadAllText($xmlFile)
-Check ($config.service.executable -eq (Get-Command node).Source) 'Incorrect resolved Node executable'
+Check ($config.service.executable -eq (Get-CanonicalPath (Get-Command node).Source)) 'Incorrect resolved Node executable'
 Check (@($config.service.env | Where-Object { $_.name -eq 'PORT' -and $_.value -eq '19082' }).Count -eq 1) 'Incorrect XML port'
 Check ($config.service.arguments.StartsWith('--max-old-space-size=8192 "')) 'Missing default memory flag before script path'
 Check ($firstOutput.Contains('MaxMemoryMB: 8192 (default)')) 'Missing default memory source'

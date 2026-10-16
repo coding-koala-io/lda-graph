@@ -13,7 +13,7 @@ import {quiet} from './helpers.js';
 import {document} from './fixtures.js';
 
 const repo = resolve(import.meta.dirname, '..');
-const ps = ['powershell', 'pwsh'].find(command => spawnSync(command, ['-NoProfile', '-Command', 'exit 0'], {windowsHide: true}).status === 0);
+import {hasPowerShell, runPowerShell, canonicalPath} from './powershell.js';
 function scratch(t) {
   const folder = mkdtempSync(join(tmpdir(), 'graph-service-test-'));
   t.after(() => {
@@ -92,14 +92,14 @@ test('service initialization generates dashboard-compatible Default keys, snippe
   for (const dir of ['data', 'logs']) assert.equal(readFileSync(join(runtime, dir, 'keep.txt'), 'utf8'), dir);
 });
 
-test('PowerShell plan with temp RuntimeRoot is read-only, preserves existing files and produces parseable XML', {skip: !ps, timeout: 30000}, t => {
+test('PowerShell plan with temp RuntimeRoot is read-only, preserves existing files and produces parseable XML', {skip: !hasPowerShell, timeout: 30000}, t => {
   const root = scratch(t);
   for (const existing of [false, true]) {
     const runtime = join(root, existing ? "existing & team's runtime" : "new & team's runtime");
     if (existing) { mkdirSync(runtime); writeFileSync(join(runtime, 'tenants.json'), 'hand-edited'); }
-    const result = spawnSync(ps, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'scripts', 'service.ps1'), 'plan', '-Port', '19082', '-RuntimeRoot', runtime, '-ImportFrom', join(root, 'dev & source')], {encoding: 'utf8', windowsHide: true});
+    const result = runPowerShell(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'scripts', 'service.ps1'), 'plan', '-Port', '19082', '-RuntimeRoot', runtime, '-ImportFrom', join(root, 'dev & source')], {encoding: 'utf8', windowsHide: true});
     assert.equal(result.status, 0, result.stdout + result.stderr);
-    assert.match(result.stdout, /PLAN ONLY/); assert.ok(result.stdout.includes(runtime));
+    assert.match(result.stdout, /PLAN ONLY/); assert.ok(result.stdout.includes(canonicalPath(runtime)), result.stdout);
     assert.ok(result.stdout.includes(WRAPPER_URL)); assert.match(result.stdout, /SHA-256/); assert.match(result.stdout, /PID\/name/);
     assert.match(result.stdout, /19082 \(from -Port\)/); assert.match(result.stdout, /mismatch aborts/);
     assert.match(result.stdout, /MaxMemoryMB: 8192 \(default\)/);
@@ -107,60 +107,60 @@ test('PowerShell plan with temp RuntimeRoot is read-only, preserves existing fil
     assert.equal(existsSync(runtime), existing);
     if (existing) { assert.deepEqual(readdirSync(runtime), ['tenants.json']); assert.equal(readFileSync(join(runtime, 'tenants.json'), 'utf8'), 'hand-edited'); }
     const xml = result.stdout.slice(result.stdout.indexOf('<?xml'));
-    const verify = spawnSync(ps, ['-NoProfile', '-Command', '$text = [Console]::In.ReadToEnd(); [xml]$doc = $text; if ($doc.service.id -ne "LdaGraph") { exit 1 }'], {input: xml, encoding: 'utf8', windowsHide: true});
+    const verify = runPowerShell(['-NoProfile', '-Command', '$text = [Console]::In.ReadToEnd(); [xml]$doc = $text; if ($doc.service.id -ne "LdaGraph") { exit 1 }'], {input: xml, encoding: 'utf8', windowsHide: true});
     assert.equal(verify.status, 0, verify.stderr);
   }
   const runtime = join(root, 'configured-port'); const paths = runtimePaths(runtime);
   mkdirSync(paths.service, {recursive: true});
   const configuredXml = generateServiceXml({nodePath: process.execPath, repoRoot: repo, runtimeRoot: runtime, port: 19083, maxMemoryMB: 12288});
   writeFileSync(paths.xml, configuredXml);
-  const preserved = spawnSync(ps, ['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime], {encoding: 'utf8', windowsHide: true});
+  const preserved = runPowerShell(['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime], {encoding: 'utf8', windowsHide: true});
   assert.equal(preserved.status, 0, preserved.stdout + preserved.stderr);
   assert.match(preserved.stdout, /19083 \(kept from existing config\)/);
   assert.match(preserved.stdout, /name="PORT" value="19083"/);
   assert.match(preserved.stdout, /MaxMemoryMB: 12288 \(kept from existing config\)/);
   assert.match(preserved.stdout, /--max-old-space-size=12288 /);
   assert.equal(readFileSync(paths.xml, 'utf8'), configuredXml);
-  const explicit = spawnSync(ps, ['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime, '-MaxMemoryMB', '16384'], {encoding: 'utf8', windowsHide: true});
+  const explicit = runPowerShell(['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime, '-MaxMemoryMB', '16384'], {encoding: 'utf8', windowsHide: true});
   assert.equal(explicit.status, 0, explicit.stdout + explicit.stderr);
   assert.match(explicit.stdout, /MaxMemoryMB: 16384 \(from -MaxMemoryMB\)/);
   assert.match(explicit.stdout, /--max-old-space-size=16384 /);
   writeFileSync(paths.xml, configuredXml.replace('--max-old-space-size=12288 ', ''));
-  const legacy = spawnSync(ps, ['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime], {encoding: 'utf8', windowsHide: true});
+  const legacy = runPowerShell(['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime], {encoding: 'utf8', windowsHide: true});
   assert.equal(legacy.status, 0, legacy.stdout + legacy.stderr);
   assert.match(legacy.stdout, /MaxMemoryMB: 8192 \(default\)/);
   for (const memory of ['1023', '65537']) {
-    const invalidMemory = spawnSync(ps, ['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime, '-MaxMemoryMB', memory], {encoding: 'utf8', windowsHide: true});
+    const invalidMemory = runPowerShell(['-NoProfile', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-RuntimeRoot', runtime, '-MaxMemoryMB', memory], {encoding: 'utf8', windowsHide: true});
     assert.notEqual(invalidMemory.status, 0);
   }
   const script = readFileSync(join(repo, 'scripts/service.ps1'), 'utf8');
   assert.ok(!script.includes('??'), 'PowerShell 5.1 has no null-coalescing operator');
-  const invalid = spawnSync(ps, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-Port', '0', '-RuntimeRoot', join(root, 'invalid')], {encoding: 'utf8', windowsHide: true});
+  const invalid = runPowerShell(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'scripts/service.ps1'), 'plan', '-Port', '0', '-RuntimeRoot', join(root, 'invalid')], {encoding: 'utf8', windowsHide: true});
   assert.notEqual(invalid.status, 0); assert.equal(existsSync(join(root, 'invalid')), false);
 });
 
-test('mocked PowerShell lifecycle: install, reuse, import, conflicts, controls, status, UAC handoff and retained data', {skip: !ps, timeout: 30000}, t => {
+test('mocked PowerShell lifecycle: install, reuse, import, conflicts, controls, status, UAC handoff and retained data', {skip: !hasPowerShell, timeout: 30000}, t => {
   const root = scratch(t);
-  const result = spawnSync(ps, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'test/fixtures/service-harness.ps1'), '-RuntimeRoot', join(root, 'runtime & files')], {encoding: 'utf8', windowsHide: true});
+  const result = runPowerShell(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'test/fixtures/service-harness.ps1'), '-RuntimeRoot', join(root, 'runtime & files')], {encoding: 'utf8', windowsHide: true});
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /PASS: mocked install/);
 });
 
-test('PowerShell plan preserves non-ASCII runtime paths in generated XML and restores console encoding', {skip: !ps, timeout: 15000}, t => {
+test('PowerShell plan preserves non-ASCII runtime paths in generated XML and restores console encoding', {skip: !hasPowerShell, timeout: 15000}, t => {
   const root = scratch(t); const runtime = join(root, 'caf\u00e9-\u6771\u4eac');
-  const result = spawnSync(ps, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'test/fixtures/service-harness.ps1'), '-RuntimeRoot', runtime, '-EncodingPlan'], {encoding: 'utf8', windowsHide: true});
+  const result = runPowerShell(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'test/fixtures/service-harness.ps1'), '-RuntimeRoot', runtime, '-EncodingPlan'], {encoding: 'utf8', windowsHide: true});
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /PASS: UTF-8 plan/);
   assert.equal(existsSync(runtime), false);
 });
 
-test('service logs command tails the last 50 lines of wrapper, stdout and stderr without modifying a temp runtime', {skip: !ps, timeout: 15000}, t => {
+test('service logs command tails the last 50 lines of wrapper, stdout and stderr without modifying a temp runtime', {skip: !hasPowerShell, timeout: 15000}, t => {
   const root = scratch(t); const runtime = join(root, 'runtime'); const service = join(runtime, 'service'); const logs = join(service, 'logs');
   mkdirSync(logs, {recursive: true});
   for (const [folder, suffix] of [[service, 'wrapper'], [logs, 'out'], [logs, 'err']]) {
     writeFileSync(join(folder, `LdaGraph.${suffix}.log`), Array.from({length: 60}, (_, index) => `${suffix}-line-${index + 1}`).join('\n'));
   }
-  const result = spawnSync(ps, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'scripts/service.ps1'), 'logs', '-RuntimeRoot', runtime], {encoding: 'utf8', windowsHide: true});
+  const result = runPowerShell(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repo, 'scripts/service.ps1'), 'logs', '-RuntimeRoot', runtime], {encoding: 'utf8', windowsHide: true});
   assert.equal(result.status, 0, result.stdout + result.stderr);
   for (const suffix of ['wrapper', 'out', 'err']) {
     assert.ok(!result.stdout.includes(`${suffix}-line-10\n`) && !result.stdout.includes(`${suffix}-line-10\r\n`));
@@ -226,7 +226,7 @@ test('without -RuntimeRoot the script follows the installed service to its runti
   const script = readFileSync(new URL('../scripts/service.ps1', import.meta.url), 'utf8');
   const detect = script.indexOf("if (!$PSBoundParameters.ContainsKey('RuntimeRoot'))");
   assert.ok(detect > script.indexOf('$serviceId = '), 'detection runs after the service id is known');
-  assert.ok(detect < script.indexOf('$RuntimeRoot = [IO.Path]::GetFullPath($RuntimeRoot)'), 'detection runs before paths are derived');
+  assert.ok(detect < script.indexOf('$RuntimeRoot = Get-CanonicalPath $RuntimeRoot'), 'detection runs before paths are derived');
   assert.match(script, /\$RuntimeRoot = Split-Path \(Split-Path \$installedExe -Parent\) -Parent/);
 });
 
