@@ -305,8 +305,18 @@ function New-RestrictedDirectorySecurity([switch]$Service) {
     return $acl
 }
 
+function Set-ItemAccessControl([string]$Path, $Security) {
+    # Writes only the sections that were changed (owner and/or DACL), never the SACL: Set-Acl also tries the SACL on
+    # an already protected folder, which needs SeSecurityPrivilege and fails on a re-run. Windows PowerShell 5.1 has
+    # the instance method; PowerShell 7 (.NET) exposes the same call as IO.FileSystemAclExtensions.
+    $item = Get-Item -LiteralPath $Path -Force
+    if ($PSVersionTable.PSVersion.Major -le 5) { $item.SetAccessControl($Security) }
+    elseif ($item -is [IO.DirectoryInfo]) { [IO.FileSystemAclExtensions]::SetAccessControl($item, [Security.AccessControl.DirectorySecurity]$Security) }
+    else { [IO.FileSystemAclExtensions]::SetAccessControl($item, [Security.AccessControl.FileSecurity]$Security) }
+}
+
 function Set-RestrictedDirectoryAcl([string]$Path, [switch]$Service) {
-    Set-Acl -LiteralPath $Path -AclObject (New-RestrictedDirectorySecurity -Service:$Service)
+    Set-ItemAccessControl $Path (New-RestrictedDirectorySecurity -Service:$Service)
 }
 
 function New-RestrictedDirectory([string]$Path, [switch]$Service) {
@@ -323,7 +333,8 @@ function Grant-LocalServiceAccess([string]$Path, [string]$Rights, [switch]$File)
     if ($File) { $inheritance = 'None' }
     $rule = New-Object Security.AccessControl.FileSystemAccessRule($identity, $Rights, $inheritance, 'None', 'Allow')
     $acl.SetAccessRule($rule)
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    # Only the DACL was changed, so only the DACL is written.
+    Set-ItemAccessControl $Path $acl
 }
 
 function Set-RuntimePermissions {

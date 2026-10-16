@@ -100,6 +100,9 @@ function Set-Acl {
     $AclObject.SetOwner((New-Object Security.Principal.SecurityIdentifier($script:directoryOwnerSid)))
     $script:mockAcls[$LiteralPath] = $AclObject
 }
+# The script writes every ACL through Set-ItemAccessControl (owner/DACL only, no SACL); route it to the recording
+# Set-Acl mock above so the same checks apply.
+function Set-ItemAccessControl([string]$Path, $Security) { Set-Acl -LiteralPath $Path -AclObject $Security }
 function Invoke-WebRequest { throw 'Network access forbidden in test harness' }
 function Start-Process { throw 'Elevation forbidden in test harness' }
 function Get-NetTCPConnection { throw 'Real port inspection forbidden in test harness' }
