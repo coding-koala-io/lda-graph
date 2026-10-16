@@ -3,7 +3,7 @@ Business Source License 1.1
 Parameters
 
 Licensor:             Coding Koalas Pty Ltd (ACN 668 775 433)
-Licensed Work:        LDA Local Graph 1.0.1
+Licensed Work:        LDA Local Graph 1.0.2
                       The Licensed Work is (c) 2026 Coding Koalas Pty Ltd.
 Additional Use Grant: None
 Change Date:          2030-10-16
