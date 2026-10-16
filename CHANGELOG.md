@@ -2,7 +2,7 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
-## [1.0.2] - unreleased
+## [1.0.2] - 2026-10-16
 
 ### Fixed
 - Release build on GitHub: the permission test no longer assumes a non-admin file owner. The 1.0.1 tag was never released; 1.0.2 contains all 1.0.1 fixes.
