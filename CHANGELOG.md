@@ -2,7 +2,7 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
-## [1.0.1] - unreleased
+## [1.0.1] - 2026-10-16
 
 ### Fixed
 - Windows service script: paths with 8.3 short names are canonicalised before comparison; Windows PowerShell 5.1 child processes no longer inherit PowerShell 7's module path.
