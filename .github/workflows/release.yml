@@ -1,0 +1,37 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Validate tag and extract release notes
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -cne "v$version") { throw 'Tag must equal v plus package.json version' }
+          node scripts/release-notes.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install dependencies
+        run: npm ci
+      - run: npm test
+      - run: npm run release:build
+        env:
+          LDA_RELEASE_COMMIT: ${{ github.sha }}
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          # PowerShell does not expand wildcards for native programs: name the ZIP explicitly.
+          gh release create $env:GITHUB_REF_NAME "dist/lda-graph-$version.zip" dist/SHA256SUMS dist/manifest.json --title "LDA Local Graph $version" --notes-file release-notes.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

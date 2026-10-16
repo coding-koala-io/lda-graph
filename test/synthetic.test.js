@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {gateway, success, replaySynthetic} from './helpers.js';
+import {SEARCH} from './fixtures.js';
+import {HOME_ID, HOME_KEY, JOB_ID, TYPES, CONTENT_QUERY} from './synthetic-fixtures.js';
+
+test('synthetic full synchronization, journals and content queries succeed', async t => {
+  const logs = [];
+  const gw = await gateway(t, {logger: {log: m => logs.push(m), error: m => logs.push(m)}});
+  const journal = await replaySynthetic(gw.request);
+  assert.equal((await gw.request(`/journal/indexing/${JOB_ID}/status`)).data.status, 'Success');
+  assert.deepEqual((await gw.request('/api/content/v3/types?id=default')).data, TYPES);
+  const home = success(await gw.gql('{HomePage(locale:en){items{_metadata{displayName url{default}} Keywords}}}'), 'HomePage');
+  assert.ok(home.items.some(d => d._metadata.displayName === 'Home' && d._metadata.url.default === '/en/'));
+  assert.deepEqual(home.items[0].Keywords, ['welcome', 'overview']);
+  assert.equal(success(await gw.gql('{_Content(locale:en,limit:100){total}}'), '_Content').total, 5);
+  assert.equal(success(await gw.gql('{_Content(locale:ALL){total}}'), '_Content').total, 11);
+  assert.equal(success(await gw.gql('{_Content(locale:ALL){total}}', {}, {auth: 'epi-single public'}), '_Content').total, 10);
+  assert.equal(success(await gw.gql('{HomePage(locale:sv){total}}'), 'HomePage').total, 1);
+  assert.equal(success(await gw.gql('{PictureMedia(locale:NEUTRAL){total}}'), 'PictureMedia').total, 3);
+  assert.equal(success(await gw.gql('{FileMedia(locale:NEUTRAL){total}}'), 'FileMedia').total, 1);
+  assert.equal(success(await gw.gql('{ContentFolder(locale:NEUTRAL){total}}'), 'ContentFolder').total, 1);
+  assert.ok(success(await gw.gql(CONTENT_QUERY.query, CONTENT_QUERY.variables), '_Content').item._metadata.lastModified);
+  assert.equal(success(await gw.gql(SEARCH, {limit: 100, searchPhrase: 'news', searchId: null}), '_Content').items.length, 1);
+  const record = gw.server.store.state.docs[HOME_ID];
+  assert.equal(record.normalized._metadata.key, HOME_KEY);
+  assert.ok(record.normalized._metadata.url.internal.includes('&'));
+  assert.ok(Array.isArray(record.normalized.Keywords));
+  assert.ok(record.skipped.includes('Keywords'));
+  assert.ok(record.normalized._metadata.path.every(key => /^[a-f0-9]{32}$/i.test(key)));
+  assert.equal(Object.keys(gw.server.store.state.journals).length, 4);
+  assert.equal(Object.keys(gw.server.store.state.jobs).length, 1);
+  assert.equal(Object.keys(gw.server.store.state.tombstones).length, 2);
+  assert.equal((await gw.request('/journal/stream/' + journal)).data.items.length, 11);
+  assert.ok(!logs.some(line => line.includes('Schema rebuild rejected')), logs.join('\n'));
+});

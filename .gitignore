@@ -1,0 +1,14 @@
+node_modules/
+data/
+logs/
+tenants.json
+service-runtime/
+# WinSW is downloaded only at service install time; never commit wrappers.
+scripts/*.exe
+*.log
+.dashboard-preview/
+*.corrupt-*
+
+dist/
+.test-runtime/
+release-notes.md

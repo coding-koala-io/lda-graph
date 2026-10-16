@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Legal notices, rights-holder concerns and takedown requests
+    url: https://github.com/coding-koala-io/lda-graph/blob/main/TAKEDOWN-AND-CONTACT.md
+    about: Please do not use public issues for legal notices. Email legal@codingkoala.io as described in TAKEDOWN-AND-CONTACT.md.
+  - name: Security vulnerabilities
+    url: https://github.com/coding-koala-io/lda-graph/blob/main/SECURITY.md
+    about: Please do not report security problems in public issues. Email security@codingkoala.io.
