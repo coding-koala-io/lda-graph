@@ -2,6 +2,12 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.0.1] - unreleased
+
+### Fixed
+- Windows service script: paths with 8.3 short names are canonicalised before comparison; Windows PowerShell 5.1 child processes no longer inherit PowerShell 7's module path.
+- Re-applying permissions to an already locked folder no longer needs the audit privilege.
+
 ## [1.0.0] - 2026-10-16
 
 ### Changed
