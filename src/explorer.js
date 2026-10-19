@@ -28,7 +28,7 @@ const summary = doc => ({id: doc._id, type: doc.__typename ?? '', displayName: d
 const itemRow = (base, doc, withType) => [link(url(base, {id: doc.id}), doc.displayName ?? doc.id), ...(withType ? [e(doc.type)] : []), e(doc.locale), badge(doc.status), e(doc.version ?? ''), timestamp(doc.lastModified)];
 
 export function explorerPickerHtml(registry) {
-  const rows = registry.entries.map(tenant => [link('/explorer?tenant=' + encodeURIComponent(tenant.id), tenant.name), `<code>${e(tenant.id)}</code>`, number(stats(registry.get(tenant.id)).docs)]);
+  const rows = registry.entries.map(tenant => [link('/explorer?tenant=' + encodeURIComponent(tenant.id), tenant.name), `<code>${e(tenant.id)}</code>`, registry.get(tenant.id, false).store ? number(stats(registry.get(tenant.id, false)).docs) : 'not loaded']);
   return page('Content explorer', `<p>${link('/', 'Dashboard')} · ${link('/graphiql', 'GraphiQL')}</p><p>Choose an instance to browse.</p>${table(['Instance', 'ID', 'Count'], rows)}`);
 }
 

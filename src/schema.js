@@ -320,13 +320,15 @@ function constructSchema(model, store, onMutation) {
           }
         }
       }
+      let hasAutocomplete = false;
       for (const rootNode of info.fieldNodes) {
         const selected = collectFields(info.schema, info.fragments, info.variableValues, rootOutput, rootNode.selectionSet);
+        for (const nodes of selected.values()) if (nodes[0].name.value === 'autocomplete') hasAutocomplete = true;
         for (const nodes of selected.values()) if (nodes[0].name.value === 'facets') {
           collectFacetFilters(aggregation(key, 'facet'), nodes.map(n => n.selectionSet));
         }
       }
-      return evaluateQuery(store, key, {...args, facetFilters}, context);
+      return evaluateQuery(store, key, {...args, facetFilters, unorderedAggregations: args.limit === 0 && !hasAutocomplete}, context);
     }};
   }
   const mutationFields = {};

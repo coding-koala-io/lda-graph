@@ -87,6 +87,24 @@ test('number/date/bool/list facets, distinct counts, sort, ranges and word autoc
   assert.equal(result.facets.Visible.length, 2); assert.equal(result.autocomplete._metadata.displayName.length, 2);
 });
 
+test('zero-item aggregations retain facet counts and selected autocomplete ordering', async t => {
+  const {request, gql, seed} = await gateway(t); await seed();
+  await request('/_stream', {method: 'POST', body: index('two', document({'Tags$$String': ['News'], metadata: {displayName___searchable: 'An Article', lastModified: '2026-10-14T00:00:00Z'}}))});
+  for (const direction of ['ASC', 'DESC']) for (const include of [false, true]) {
+    const result = success(await gql(`query($include:Boolean!){ArticlePage(limit:0 orderBy:{_metadata:{lastModified:${direction}}}){
+      total cursor items{_id} item{_id} ...Choices
+      hints:autocomplete @include(if:$include){_metadata{displayName(value:"Art",limit:1)}}
+    }} fragment Choices on ArticlePageOutput { choices:facets{Tags(filters:["News"] orderType:VALUE orderBy:ASC){name count}} }`, {include}), 'ArticlePage');
+    assert.equal(result.total, 2);
+    assert.equal(result.cursor, '');
+    assert.deepEqual(result.items, []);
+    assert.equal(result.item, null);
+    assert.deepEqual(result.choices.Tags, [{name: 'News', count: 2}, {name: 'Technology', count: 1}]);
+    if (include) assert.deepEqual(result.hints._metadata.displayName, [direction === 'ASC' ? 'Quick Article' : 'An Article']);
+    else assert.equal(Object.hasOwn(result, 'hints'), false);
+  }
+});
+
 test('normalization recursively blocks searchable descendants inside skip objects', () => {
   const record = normalizeDocument({'Object$$JSON___skip': {'nested$$String___searchable': 'hidden'}, Some: [{__typename: 'SearchableRichText', 'html$$String': '<p>found</p>'}]}, 'id');
   assert.deepEqual(record.searchable, ['Some.html']); assert.ok(record.skipped.includes('Object.nested')); assert.equal(record.normalized.Some[0].__typename, 'SearchableRichText');

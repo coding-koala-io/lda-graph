@@ -62,16 +62,18 @@ export function memoryHtml(memory = processMemory()) {
 }
 
 export function dashboardHtml(registry, token, flash = '', error = '', values = {}) {
-  const accounts = registry.entries.map(tenant => ({tenant, s: stats(registry.get(tenant.id)), base: tenantPath(tenant.id)}));
-  const actions = ({tenant, base}) => `${link(base, 'Open')} · ${link('/graphiql?tenant=' + encodeURIComponent(tenant.id), 'GraphiQL')}`;
+  const accounts = registry.entries.map(tenant => { const runtime = registry.get(tenant.id, false); return {tenant, s: runtime.store ? stats(runtime) : null, base: tenantPath(tenant.id)}; });
+  const actions = ({tenant, base, s}) => `${link(base, s ? 'Open' : 'Load')} · ${link('/graphiql?tenant=' + encodeURIComponent(tenant.id), 'GraphiQL')}`;
   const keys = tenant => `<div class="keys-row"><strong>Keys</strong><div>AppKey ${masked(tenant.appKey)}</div><div>SingleKey ${masked(tenant.singleKey)}</div></div>`;
   const sync = s => s.lastSync ? `${timestamp(s.lastSync.ts)} ${badge(s.lastSync.status)}` : 'Never';
   const rows = accounts.map(account => {
     const {tenant, s, base} = account;
+    if (!s) return [`${link(base, tenant.name)}<br><code>${e(tenant.id)}</code>${keys(tenant)}`, ...Array(6).fill('not loaded'), actions(account)];
     return [`${link(base, tenant.name)}<br><code>${e(tenant.id)}</code>${keys(tenant)}`, `${number(s.docs)} live documents<br><span class="muted">Published / Draft / other</span><br>${number(s.statuses.Published)} / ${number(s.statuses.Draft)} / ${number(s.statuses.other)}`, number(s.contentTypes), e(s.languages.join(', ')), sync(s), timestamp(s.lastRequest), `<span class="number">${e(bytes(s.storeBytes))}</span>`, actions(account)];
   });
   const cards = accounts.map(account => {
     const {tenant, s, base} = account;
+    if (!s) return `<article class="tenant-card"><h2>${link(base, tenant.name)}</h2><code>${e(tenant.id)}</code><p>not loaded</p>${keys(tenant)}<p>${actions(account)}</p></article>`;
     return `<article class="tenant-card"><h2>${link(base, tenant.name)}</h2><code>${e(tenant.id)}</code><dl><dt>Docs</dt><dd>${number(s.docs)} live documents</dd><dt>Published / Draft / other</dt><dd>${number(s.statuses.Published)} / ${number(s.statuses.Draft)} / ${number(s.statuses.other)}</dd><dt>Content types</dt><dd>${number(s.contentTypes)}</dd><dt>Languages</dt><dd>${e(s.languages.join(', ')) || 'None'}</dd><dt>Last full sync</dt><dd>${sync(s)}</dd><dt>Last request</dt><dd>${timestamp(s.lastRequest)}</dd><dt>Store size</dt><dd>${e(bytes(s.storeBytes))}</dd></dl>${keys(tenant)}<p>${actions(account)}</p></article>`;
   }).join('');
   return page('Local Optimizely Graph', `<p class="muted">Isolated CMS accounts on this gateway. Published / Draft / other counts reflect live documents.</p><p>Tenant configuration: <code>${e(registry.file)}</code> · ${link('/explorer', 'Explore content')}</p>${memoryHtml()}<div class="tenant-directory">${table(['Name / ID / Keys', 'Docs', 'Content types', 'Languages', 'Last full sync', 'Last request', 'Store size', 'Actions'], rows)}</div><div class="tenant-cards">${cards || '<p>No tenants yet.</p>'}</div>${registry.defaultNeedsKeys ? defaultKeysHtml(registry, token, error) : tenantForm(values, token, error)}`, flash);
@@ -110,7 +112,7 @@ async function refreshCounts(){
   try {
     const response=await fetch(statsUrl);if(!response.ok)throw Error();const s=await response.json();
     const format=value=>value.toLocaleString('en-US');
-    document.getElementById('live-counts').textContent=format(s.docs)+' live documents \u00b7 new slot: '+(s.slots.new===null?'inactive':format(s.slots.new)+' documents')+(s.slots.old===null?'':' \u00b7 previous (revertable): '+format(s.slots.old)+' docs')+' \u00b7 '+format(s.tombstones)+' tombstones';
+    document.getElementById('live-counts').textContent=format(s.docs)+' live documents \u00b7 new slot: '+(s.slots.new===null?'inactive':format(s.slots.new)+' documents')+(s.slots.old===null?'':' \u00b7 previous (revertable): '+format(s.slots.old)+' docs (expires '+(s.oldSlotExpires??'never')+')')+' \u00b7 '+format(s.tombstones)+' tombstones';
     const time=document.createElement('time');
     if(s.typesUpdated){time.dateTime=s.typesUpdated;time.title=s.typesUpdated;updateTime(time)}else{time.textContent='Never'}
     document.getElementById('types-summary').replaceChildren('Types model: '+format(s.contentTypes)+' content types \u00b7 '+format(s.propertyTypes)+' property types \u00b7 languages: '+s.languages.join(', ')+' \u00b7 last types PUT/POST: ',time,' '+(s.typesMethod??''));
@@ -144,7 +146,7 @@ async function refreshCounts(){
 setInterval(refreshCounts,5000);</script>`, params.get('flash'));
 }
 
-function overviewText(s) { return `${s.docs.toLocaleString('en-US')} live documents · new slot: ${s.slots.new === null ? 'inactive' : s.slots.new.toLocaleString('en-US') + ' documents'}${s.slots.old === null ? '' : ' · previous (revertable): ' + s.slots.old.toLocaleString('en-US') + ' docs'} · ${s.tombstones.toLocaleString('en-US')} tombstones`; }
+function overviewText(s) { return `${s.docs.toLocaleString('en-US')} live documents · new slot: ${s.slots.new === null ? 'inactive' : s.slots.new.toLocaleString('en-US') + ' documents'}${s.slots.old === null ? '' : ' · previous (revertable): ' + s.slots.old.toLocaleString('en-US') + ' docs (expires ' + (s.oldSlotExpires ?? 'never') + ')'} · ${s.tombstones.toLocaleString('en-US')} tombstones`; }
 
 export function documentHtml(runtime, record, slot = 'live') {
   const doc = record.normalized; const key = doc._metadata?.key;

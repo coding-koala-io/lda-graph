@@ -1,4 +1,4 @@
-import {existsSync, readFileSync, mkdirSync, renameSync, readdirSync, watch, watchFile, unwatchFile, promises as fs} from 'node:fs';
+import {existsSync, statSync, readFileSync, mkdirSync, renameSync, readdirSync, watch, watchFile, unwatchFile, promises as fs} from 'node:fs';
 import {resolve, join, dirname, basename} from 'node:path';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
 import {product} from './product.js';
@@ -141,7 +141,10 @@ export class TenantRegistry {
     for (const [, runtime] of evicted) runtime.busy = true;
     const moved = [];
     try {
-      for (const [, runtime] of evicted) if (runtime.store) await runtime.store.flush();
+      for (const [, runtime] of evicted) if (runtime.store) {
+        runtime.store.dispose();
+        await runtime.store.flush({onlyIfChanged: true});
+      }
       checkTargets();
       for (const move of moves) if (existsSync(move.from)) { renameSync(move.from, move.to); moved.push(move); }
       await commit();
@@ -151,6 +154,7 @@ export class TenantRegistry {
     } finally { for (const [, runtime] of evicted) runtime.busy = false; }
     if (this.legacy && (this.config.appKey || this.config.secret || this.config.singleKey)) (this.logger.warn ?? this.logger.error).call(this.logger, 'tenants.json exists; GRAPH_APP_KEY/GRAPH_SECRET/GRAPH_SINGLE_KEY are ignored');
     for (const [id, runtime] of evicted) {
+      runtime.store?.dispose();
       this.runtimes.delete(id);
       const renamed = renames.find(({old}) => old.id === id);
       if (renamed) runtime.log.dir = this.folder(this.config.logDir, renamed.next.id);
@@ -179,7 +183,11 @@ export class TenantRegistry {
       this.runtimes.set(id, runtime);
     }
     if (load && !runtime.store) {
-      runtime.store = this.legacy && id === 'default' && this.config.store ? this.config.store : new Store({dataDir: this.folder(this.config.dataDir, id), logger: this.logger});
+      const started = performance.now();
+      const folder = this.folder(this.config.dataDir, id);
+      const size = folder === ':memory:' ? 0 : ['store.ndjson', 'store.json'].reduce((sum, file) => sum + (existsSync(join(folder, file)) ? statSync(join(folder, file)).size : 0), 0);
+      this.logger.log(`[${id}] loading store (${(size / 1048576).toFixed(1)} MB)…`);
+      runtime.store = this.legacy && id === 'default' && this.config.store ? this.config.store : new Store({dataDir: folder, logger: this.logger, tenant: id, previousSlotHours: this.config.previousSlotHours});
       runtime.rebuild = () => {
         const conflicts = new Set();
         for (const slot of ['live', 'new']) {
@@ -189,6 +197,7 @@ export class TenantRegistry {
         if (conflicts.size) (this.logger.warn ?? this.logger.error).call(this.logger, `Source type name clash; keeping the first definition (default takes precedence): ${[...conflicts].join(', ')}`);
       };
       runtime.rebuild(); runtime.log.load();
+      this.logger.log(`[${id}] loaded store in ${(performance.now() - started).toFixed(0)} ms`);
     }
     return runtime;
   }
@@ -244,12 +253,13 @@ export class TenantRegistry {
     if (Object.keys(state.docs).length || Object.keys(state.types).length || Object.keys(state.journals).length || Object.keys(state.jobs).length || state.webhooks.length || Object.keys(state.tombstones).length || state.slots.new || state.slots.old) throw new Error('Import requires an empty tenant; reset everything first');
     runtime.busy = true;
     try {
-      await runtime.store.flush(); const target = runtime.store.dataDir;
+      await runtime.store.flush({onlyIfChanged: true}); const target = runtime.store.dataDir;
       const oldFiles = (await fs.readdir(target)).filter(name => /^store\.(ndjson|json)$/.test(name) || /^store\.(json\.migrated-|corrupt-)/.test(name));
       const backup = join(target, `before-import-${randomUUID()}`);
       if (oldFiles.length) { await fs.mkdir(backup); for (const name of oldFiles) await fs.rename(join(target, name), join(backup, name)); }
       for (const name of files) await fs.rename(join(this.config.dataDir, name), join(target, name));
-      runtime.store = new Store({dataDir: target, logger: this.logger}); runtime.rebuild();
+      runtime.store.dispose();
+      runtime.store = new Store({dataDir: target, logger: this.logger, tenant: id, previousSlotHours: this.config.previousSlotHours}); runtime.rebuild();
     } finally { runtime.busy = false; }
   }
   /** Serialize dashboard edits so concurrent submissions cannot lose tenants. */
@@ -284,7 +294,7 @@ export class TenantRegistry {
     });
   }
   async deleteFolders(id, runtime) {
-    if (runtime?.store) await runtime.store.flush();
+    if (runtime?.store) await runtime.store.flush({onlyIfChanged: true});
     for (const root of [this.config.dataDir, this.config.logDir]) {
       if (root === ':memory:') continue;
       const base = resolve(root); const target = resolve(root, id);
@@ -298,7 +308,8 @@ export class TenantRegistry {
   async close() {
     this.closed = true; this.watcher?.close(); if (this.fileWatcher) unwatchFile(this.file, this.fileWatcher); clearTimeout(this.reloadTimer); await this.writeQueue;
     for (const runtime of this.runtimes.values()) if (runtime.store) {
-      try { await runtime.store.flush(); } catch (error) { this.logger.error(`Shutdown persistence failed: ${error.message} [${runtime.tenant.id}]`); }
+      runtime.store.dispose();
+      try { await runtime.store.flush({onlyIfChanged: true}); } catch (error) { this.logger.error(`Shutdown persistence failed: ${error.message} [${runtime.tenant.id}]`); }
     }
   }
 }

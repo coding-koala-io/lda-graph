@@ -17,18 +17,18 @@ Part of **Local Developer Accelerator for Optimizely** — by Coding Koala. Comp
 ## Install with the LDA CLI
 
 ```powershell
-npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/download/v1.0.0/coding-koala-io-accelerator-1.0.0.tgz
+irm https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.ps1 | iex
 lda install graph
 ```
 
-Once the CLI is published to npm, you can install it with `npm i -g @coding-koala-io/accelerator` instead. `lda self-update` handles both.
+`lda self-update` updates the CLI.
 
 A single Node.js process that accepts content and type pushes from an Optimizely CMS 13 site and answers its GraphQL queries locally.
 
 ## Why this exists
 
 - **Faster inner loop.** Build and debug CMS 13 sites that use Graph without waiting on a cloud service: publish, sync and query all happen on your machine.
-- **Works offline.** No cloud Graph account is needed to develop against the Graph APIs.
+- **Works offline.** Develop and debug against the Graph APIs on your own machine, with no wait for a cloud sync.
 - **Everything is visible.** Every sync and query request is recorded in a request log, with raw documents, sync journals and jobs, so integration problems can be traced to the exact request.
 - **Several sites, one instance.** Multiple CMS sites can run against one local server, each with its own isolated data and keys.
 - **Easy to reset and replay.** Clear content, types, history or everything for one site and run a full synchronization again in seconds.
@@ -81,6 +81,7 @@ Optional: run it as a Windows service so it starts with your machine (see [Run a
 - **Nothing shows up after publishing.** Open the tenant's request log to see whether the CMS sent anything, then run **Optimizely Graph Full Synchronization** again.
 - **Port 8082 is already in use.** Start on another port with the `PORT` environment variable (for example `$env:PORT = '8090'; npm start`) and update `GatewayAddress`.
 - **After `git pull`.** Run `npm install`, then restart the server. With the Windows service: stop the service first, then pull and install, then start it again.
+- **Updating an older CLI installation.** Earlier documentation used `npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/download/v1.0.0/coding-koala-io-accelerator-1.0.0.tgz`. Use the installer above for new installations and `lda self-update` for existing ones. Once the CLI is published to npm, `npm i -g @coding-koala-io/accelerator` will also be available.
 
 ## Configuration
 
@@ -98,6 +99,8 @@ Optional: run it as a Windows service so it starts with your machine (see [Run a
 | `DATA_DIR` | `./data` | Atomic `DATA_DIR/<tenantId>/store.ndjson` persistence; also reads legacy `store.json`. `:memory:` disables it. |
 | `LOG_DIR` | `./logs` | `<tenantId>/requests.ndjson`, rotated at 50 MB with three archives (`.1`–`.3`); `:memory:` keeps only the in-memory request history. |
 | `LOG_BODIES` | `true` | Request/response bodies, truncated to 64 KB; `false` records null bodies. |
+| `PREVIOUS_SLOT_HOURS` | `24` | Previous-slot retention in hours after promotion; `0` keeps it forever. Invalid or negative values warn and use 24. Checked on load and every 10 minutes. |
+| `MEMORY_RECYCLE_MB` | automatic | Heap-used threshold in MiB; `0` disables recycling, a positive number enables it everywhere. Unset enables it only on Windows with both WinSW's inherited `BASE` and `SERVICE_ID`, at 75% of the V8 heap limit. Three high readings 30 seconds apart trigger a save and exit 75; at most once per hour, tracked in `LOG_DIR/_recycle.json`. After a recycle, sustained high startup/load readings warn and disable recycling for that process. |
 
 A non-loopback `HOST` (for example `0.0.0.0`) prints a loud startup warning: the server is for development only, anyone on the network can reach it, and a shared or production site must never point at it.
 
@@ -161,7 +164,7 @@ Without a file, the `default` tenant keeps the original `GRAPH_*` rules, includi
 
 Stores and schemas load on first use and stay in memory. `GET /health` always returns `status: "ok"`, `product` (`graph`), `version` and `dataVersion`, to every caller. Loopback callers, and callers with valid ADMIN Basic credentials on non-loopback binds, also receive `tenants: { "site-a": { "loaded": false, "docs": 0 }, ... }` and process memory, without loading stores.
 
-`tenants.json` records `"dataVersion": 1` (a file without it is read as version 1). The server refuses to start, with exit code 3 and without changing the file, when the file was written by a newer version (`Data in <path> was written by a newer version (dataVersion <n>). Upgrade LDA Local Graph or restore a backup.`) or when `dataVersion` is not a positive whole number (`Data in <path> has an invalid dataVersion (<value>).`). Upgrade, restore a backup or correct the value, then start again. Dashboard and explorer views count as use. Every account has its own types, live/new slots, docs, tombstones, journals, jobs, webhooks, and request history. Disk paths are `DATA_DIR/<tenantId>/store.ndjson` and `LOG_DIR/<tenantId>/requests.ndjson`; failed routing goes to `LOG_DIR/_unrouted/requests.ndjson`. Logs rotate independently at 50 MB. Console lines start with `[site-a]`, including GraphQL root/query name and stream ops/journal details. Bodies are bounded to 64 KB and marked when truncated; Authorization is reduced to its scheme and every logged URL redacts `?auth=` values as `auth=***`.
+`tenants.json` records `"dataVersion": 1` (a file without it is read as version 1). The server refuses to start, with exit code 3 and without changing the file, when the file was written by a newer version (`Data in <path> was written by a newer version (dataVersion <n>). Upgrade LDA Local Graph or restore a backup.`) or when `dataVersion` is not a positive whole number (`Data in <path> has an invalid dataVersion (<value>).`). Upgrade, restore a backup or correct the value, then start again. Tenant dashboards and selected-tenant explorers count as use. The main dashboard and explorer picker show "not loaded" without loading stores; choose Load or open a tenant to load it. First loads log store size and elapsed time. Admin health also includes recycle status (enabled, thresholdMb and last). Every account has its own types, live/new slots, docs, tombstones, journals, jobs, webhooks, and request history. Disk paths are `DATA_DIR/<tenantId>/store.ndjson` and `LOG_DIR/<tenantId>/requests.ndjson`; failed routing goes to `LOG_DIR/_unrouted/requests.ndjson`. Logs rotate independently at 50 MB. Console lines start with `[site-a]`, including GraphQL root/query name and stream ops/journal details. Bodies are bounded to 64 KB and marked when truncated; Authorization is reduced to its scheme and every logged URL redacts `?auth=` values as `auth=***`.
 
 If a root-level `DATA_DIR/store.ndjson` or `store.json` exists and `default` has no folder, it moves into `DATA_DIR/default/`, including migration/quarantine markers. Root-level `LOG_DIR/requests.ndjson*` files also move into `LOG_DIR/default/`, including rotated logs. Existing stores/log files are never overwritten; conflicting root logs remain in place with a warning. Without a default account, the root store stays in place with an import warning. Choose **Import legacy store** on an empty tenant page to move it into that account. Nonempty destinations are rejected; a destination's empty persisted files are archived under `before-import-<id>/` so they cannot hide an imported legacy JSON file. Existing NDJSON/JSON compatibility, corruption quarantine, migration markers and shutdown saves apply inside each tenant directory.
 
@@ -242,7 +245,7 @@ Old `/__debug/*` paths work only when exactly one tenant exists; otherwise they 
 
 `deployNewAccountVersion` creates a fresh empty new slot while keeping any previous slot. Push types/documents there with `cg-deploy-new: true` or index documents with `version: "new"`. Query it with `cg-query-new: true` (case-insensitive value); `cg-use-new: true` remains supported. Without either header, queries use live. `/graphiql?tenant={id}&slot=new` selects new, and the visible **Query: live / new slot** toggle switches the query header.
 
-`useNewAccountVersion` accepts the new slot and saves the former live types, documents, tombstones and type-update metadata as the previous slot, replacing an earlier snapshot. CMS **Settings → Smooth Rebuild** can then offer **Revert to the state at …**: `useOldAccountVersion` restores that previous live state and removes both previous and pending slots. Without a previous slot, it just drops pending. `abandonSlot` drops pending and keeps the previous state available for revert. Previous slots persist across restarts, appear as `slots.old` in tenant stats and as **previous (revertable): N docs** on the dashboard, and have no query schema. Content reset/purge also deletes the previous slot.
+`useNewAccountVersion` accepts the new slot and saves the former live types, documents, tombstones and type-update metadata as the previous slot, replacing an earlier snapshot. CMS **Settings → Smooth Rebuild** can then offer **Revert to the state at …**: `useOldAccountVersion` restores that previous live state and removes both previous and pending slots. Without a previous slot, it just drops pending. `abandonSlot` drops pending and keeps the previous state available for revert. Previous slots persist across restarts, appear as `slots.old` in tenant stats and as **previous (revertable): N docs** on the dashboard, and have no query schema. Content reset/purge also deletes the previous slot. By default the previous slot expires 24 hours after promotion (PREVIOUS_SLOT_HOURS=24). The persisted oldSlotSince timestamp survives restarts; expiry is checked on load and every 10 minutes. The tenant dashboard shows the expiry time. Set PREVIOUS_SLOT_HOURS=0 to keep it forever. Older stores without a timestamp start their retention period on first load.
 
 The CMS **Settings → GraphiQL** page works through its iframe URL `/app/graphiql?auth=<SingleKey>`. It selects the tenant by SingleKey, queries same-origin `/content/v2` with `Authorization: epi-single <key>`, and provides the same live/new toggle (including `?slot=new`). No framing headers are added, and request URLs keep redacting `auth=***`.
 
@@ -250,7 +253,7 @@ The CMS **Settings → GraphiQL** page works through its iframe URL `/app/graphi
 
 Timestamped deletes retain a tombstone per `_id` in each slot, including matches from `delete_by_paths`. Older deletes are ignored when a newer document or tombstone exists; an index older than a tombstone is a journal `noop`, preventing late batches from restoring deleted content. Tombstones persist and follow slot promotion; newer indexes can restore content.
 
-Persistence is debounced by 500 ms and uses asynchronous filesystem writes with one in-flight save and coalesced follow-up saves. `store.ndjson` contains one record per raw document, type model, tombstone, journal, job, webhook, or pending-slot marker; normalized documents/search paths are rebuilt on load. Writes use bounded batches, a temporary file, and atomic rename, then flush on server close/SIGINT/SIGTERM/SIGBREAK. Legacy `store.json` is read only before migration: after the first successful NDJSON write it is renamed to `store.json.migrated-<timestamp>-<id>`. A failed write leaves the legacy source intact. An existing NDJSON store, a migration marker, or a quarantined NDJSON store prevents legacy fallback, so stale data cannot reappear after corruption or file removal. Corrupt or partial stores are quarantined as `store.corrupt-<timestamp>-<id>.json` (or `.ndjson`), a clear warning is logged, and startup continues empty. Shutdown save failures are caught and logged. The store retains the last 1,000 journals and 200 jobs.
+Persistence coalesces changes for 500 ms without postponing an already scheduled save, so continuous pushes cannot exceed the 10-second maximum start delay unless a snapshot is already in flight. It uses asynchronous filesystem writes with one in-flight save and coalesced follow-up saves. Each save copies the slot maps at its start, retains immutable document records, clones mutable metadata/type data, and always promotes that consistent revision before saving newer changes. Shutdown skips a snapshot when the last completed revision is still current; explicit embedding calls to flush() continue to force a snapshot. `store.ndjson` contains one record per raw document, type model, tombstone, journal, job, webhook, or pending-slot marker; normalized documents/search paths are rebuilt on load. Writes use bounded batches, a temporary file, and atomic rename, then flush on server close/SIGINT/SIGTERM/SIGBREAK. Legacy `store.json` is read only before migration: after the first successful NDJSON write it is renamed to `store.json.migrated-<timestamp>-<id>`. A failed write leaves the legacy source intact. An existing NDJSON store, a migration marker, or a quarantined NDJSON store prevents legacy fallback, so stale data cannot reappear after corruption or file removal. Corrupt or partial stores are quarantined as `store.corrupt-<timestamp>-<id>.json` (or `.ndjson`), a clear warning is logged, and startup continues empty. Shutdown save failures are caught and logged. The store retains the last 1,000 journals and 200 jobs.
 
 ## Run as a Windows service
 
@@ -296,7 +299,7 @@ powershell -ExecutionPolicy Bypass -File scripts\service.ps1 install -MaxMemoryM
 
 Call the script directly as shown: `npm run service:install -- -MaxMemoryMB 16384` does not work from PowerShell, because PowerShell drops the `--` and npm then treats `-MaxMemoryMB` as its own option. The generated Node arguments place `--max-old-space-size=<MaxMemoryMB>` before the server script. Reinstall keeps the value in the existing service XML unless `-MaxMemoryMB` is passed; older XML without the flag uses the default. `plan` prints the selected value and whether it is the default, explicit, or kept from existing config. This heap budget is not a cap on total process RSS.
 
-Out-of-memory symptom: **service stops after repeated restarts; err log shows JavaScript heap out of memory**. Inspect `service:logs`, process memory on the dashboard or admin `/health`, and loaded document counts per tenant. The dashboard warns above 75% heap usage, and startup logs the heap limit. Raw documents are retained as compact JSON and parsed only for inspection; NDJSON loads normalize each line immediately and snapshot writes use bounded batches without copying document maps. Existing store files and protocol replies remain compatible.
+Out-of-memory symptom: **service stops after repeated restarts; err log shows JavaScript heap out of memory**. Inspect `service:logs`, process memory on the dashboard or admin `/health`, and loaded document counts per tenant. The dashboard warns above 75% heap usage, and startup logs the heap limit. Raw documents are retained as compact JSON and parsed only for inspection; NDJSON loads normalize each line immediately and snapshot writes use bounded batches over shallow copies of document maps. Full-text caching stays within the measured memory budget; previous slots expire after 24 hours by default. Under WinSW, sustained high heap usage drains connections for up to five seconds, flushes loaded stores and exits 75 so the wrapper restarts it. A persisted one-hour cooldown prevents repeated recycling. Plain terminal runs do not automatically recycle; set MEMORY_RECYCLE_MB explicitly with another supervisor. Existing store files and protocol replies remain compatible.
 
 Inspect the proposed install without admin, downloads, file writes or service/port changes:
 
@@ -348,8 +351,34 @@ powershell -ExecutionPolicy Bypass -File scripts\service.ps1 install -RuntimeRoo
 
 `-MaxMemoryMB` is optional; pass the heap size the old service used if it was not the default. Install does not read the old service's settings, so also pass `-Port <n>` if the old service did not use port 8082. Existing tenants, data and logs are kept. The old `OptimizelyGraphLocal.exe` and `OptimizelyGraphLocal.xml` files in `service\` are no longer used and can be deleted.
 
+## Performance
+
+Measured on Windows with Node 24.11.1, 60,000 synthetic documents, 20 types, two locales and mixed HTML. Times below are round-trip p95 milliseconds after three warmups, with 12 idle samples and 32 samples in four waves of eight clients. Both versions ran as separate children on ephemeral ports with in-memory data and logs; 1.0.2 used a read-only checkout.
+
+Each cell shows run 1 / run 2 from two complete runs per tree. All six response-data hashes matched across all four runs.
+
+| Query | 1.0.2 idle | 1.1.0 idle | 1.0.2 eight clients | 1.1.0 eight clients |
+| --- | ---: | ---: | ---: | ---: |
+| Key lookup | 319.7 / 216.5 | 1.4 / 1.9 | 1972.3 / 1696.4 | 7.2 / 7.4 |
+| URL lookup | 388.6 / 449.3 | 1.1 / 1.3 | 2455.0 / 2744.8 | 5.1 / 4.9 |
+| Typed list, 50 items | 47.8 / 56.1 | 10.2 / 9.5 | 399.8 / 368.5 | 74.0 / 54.7 |
+| Facets | 215.7 / 209.7 | 156.5 / 144.8 | 1453.7 / 1309.1 | 986.3 / 941.8 |
+| Full-text match | 776.2 / 772.5 | 124.3 / 143.2 | 5242.9 / 5983.0 | 772.3 / 901.2 |
+| CMS search with ranking | 778.8 / 845.7 | 122.8 / 123.9 | 5060.6 / 5583.0 | 811.4 / 965.4 |
+
+Zero-item aggregation queries skip sort-key decoration and sorting when no autocomplete is selected; autocomplete retains its ordering. No-op facet filters avoid copying the full result array. CPU profiles of 40 warm executions of the exact facet selection took 6.97 s in 1.0.2, 8.54 s before the fix and 4.59 s after it (excluding seed/warmup and HTTP).
+
+After creating `perf-results/`, reproduce a facet CPU profile with `node --cpu-prof --cpu-prof-dir=perf-results --cpu-prof-name=facets.cpuprofile scripts/profile-facets.mjs` (optionally `--root <read-only-checkout>`). Run `node scripts/summarize-cpu-profile.mjs perf-results/facets.cpuprofile perf-results/facets.phase.json` to report only warm query samples, excluding seeding and warmup.
+
+All specified targets were met. Full-text-only caching added 30.6 MiB of retained heap after forced GC (15.2% above the same indexed store without caches). All-field caching measured 60.3%, so field token caches and retained stripped texts were omitted. Dirty 60,000-document shutdown flushes took 436–516 ms; an already saved store skipped its snapshot. On Windows the signal benchmark dispatches SIGINT/SIGTERM/SIGBREAK process events through IPC, as the service tests do.
+
+Run `node scripts/bench-query.mjs` for the default workload; pass `--root <read-only-checkout>` for another version, or `--docs`, `--samples`, `--rounds` and `--output` to adjust the run. Run `node --expose-gc scripts/bench-memory.mjs`, `node scripts/bench-shutdown.mjs` and `node scripts/check-query-compat.mjs <baseline-checkout>` for the memory, shutdown and result comparisons. The scripts write raw measurements to `perf-results/` (not committed). These are warm-query measurements; tenant loading and lazy index construction happen before timing.
+
+Automatic recycling requires Windows plus both `BASE` and `SERVICE_ID`. [WinSW 2.12.0's XmlServiceConfig.cs, lines 51–60](https://github.com/winsw/winsw/blob/v2.12.0/src/WinSW.Core/Configuration/XmlServiceConfig.cs#L51-L60) sets these variables in the wrapper environment inherited by the child. After a recycle, three high readings immediately after startup or a tenant load disable recycling for that process and warn that the live data needs a higher heap or recycle limit. `_recycle.json` records `lastStartAboveThreshold`; later process starts reassess the limit. Invalid or negative `PREVIOUS_SLOT_HOURS` values warn and use the default 24 hours.
+
 ## Limitations
 
+- Queries still run on one JavaScript thread. Type, ID, key and URL indexes narrow candidates; general predicates and aggregations still scan their candidates. The full-text-only cache avoids repeated tokenization; field searches retokenize to stay within the measured memory budget. Recycling pauses availability while the wrapper restarts; standalone positive thresholds also exit 75 and require a restart supervisor. `LOG_DIR=:memory:` cannot retain the cooldown across restarts.
 - For public queries, documents belonging to a non-default content source with no `_metadata.status` are treated as Published. Everyone-read ACL, expiry and deletion checks still apply. This visibility rule is an approximation of the real service; Basic and preview behavior is unchanged.
 - Click tracking cannot round-trip locally: the CMS only forwards HTTPS URLs on `*.cg.optimizely.com`. `_track` returns null. The optional `_link` field is omitted.
 - Semantic ranking uses text relevance. Search has no language stemming or synonym expansion; fuzzy matching uses the local edit-distance rules above.
