@@ -3,6 +3,7 @@ import {existsSync, readFileSync, readdirSync, renameSync, openSync, readSync, c
 import {join} from 'node:path';
 import {StringDecoder} from 'node:string_decoder';
 import {normalizeDocument, valuesAt} from './normalize.js';
+import {updateIndex} from './indexes.js';
 import {compactJournal} from './journal.js';
 
 const emptySlot = () => ({types: {}, docs: {}, tombstones: {}});
@@ -45,9 +46,12 @@ function restoreSlot(value) {
 
 /** Single-process store with atomic, coalesced asynchronous persistence. */
 export class Store {
-  constructor({dataDir = './data', logger = console} = {}) {
+  constructor({dataDir = './data', logger = console, tenant = 'default', previousSlotHours = process.env.PREVIOUS_SLOT_HOURS ?? 24} = {}) {
     this.dataDir = dataDir;
     this.logger = logger;
+    this.tenant = tenant;
+    this.previousSlotHours = Math.max(0, Number(previousSlotHours) || 0);
+    this.savedRevision = -1; this.dirtySince = null;
     this.state = emptyState();
     this.timer = null;
     this.revision = 0;
@@ -91,7 +95,9 @@ export class Store {
             for (const id in this.state.journals) if (own(this.state.journals, id)) this.state.journals[id] = compactJournal(this.state.journals[id]);
             for (const slot of ['new', 'old']) if (loaded.slots?.[slot]) this.state.slots[slot] = restoreSlot(loaded.slots[slot]);
           }
+          const needsTrim = Object.keys(this.state.journals).length > 1000 || Object.keys(this.state.jobs).length > 200;
           this.trim('journals', 1000); this.trim('jobs', 200);
+          if (file === ndjson && !needsTrim) this.savedRevision = this.revision;
         } catch (error) {
           this.logger.error(`Persistence warning: corrupt or partial ${file}; starting empty: ${error.message}`);
           try { renameSync(file, join(dataDir, `store.corrupt-${Date.now()}-${randomUUID()}.${file === ndjson ? 'ndjson' : 'json'}`)); }
@@ -100,7 +106,22 @@ export class Store {
         }
       }
     }
+    this.expirePrevious();
+    this.expiryTimer = setInterval(() => this.expirePrevious(), 600000); this.expiryTimer.unref();
   }
+  expirePrevious(now = Date.now()) {
+    if (!this.state.slots.old) return false;
+    const since = Date.parse(this.state.metadata.oldSlotSince);
+    if (!Number.isFinite(since)) { this.state.metadata.oldSlotSince = new Date(now).toISOString(); this.changed(); return false; }
+    if (!this.previousSlotHours || now - since <= this.previousSlotHours * 3600000) return false;
+    delete this.state.slots.old; delete this.state.metadata.oldSlotSince;
+    this.logger.log(`[${this.tenant}] dropped previous slot after ${((now - since) / 3600000).toFixed(1)} h`);
+    this.changed(); return true;
+  }
+  previousSlotExpires() {
+    return this.state.slots.old && this.previousSlotHours ? new Date(Date.parse(this.state.metadata.oldSlotSince) + this.previousSlotHours * 3600000).toISOString() : null;
+  }
+  dispose() { clearInterval(this.expiryTimer); }
   slot(name = 'live', create = false) {
     if (name !== 'new') return this.state;
     if (!this.state.slots.new && create) this.state.slots.new = emptySlot();
@@ -109,19 +130,21 @@ export class Store {
   changed() {
     this.revision++;
     if (this.dataDir === ':memory:') return;
+    this.dirtySince ??= Date.now();
     if (this.writing) { this.pendingWrite = true; return; }
-    clearTimeout(this.timer);
+    if (this.timer) return;
     this.timer = setTimeout(() => {
       this.flush().catch(error => this.logger.error('Persistence failed:', error.message));
-    }, 500);
+    }, Math.min(500, Math.max(0, 10000 - (Date.now() - this.dirtySince))));
     this.timer.unref();
   }
-  flush() {
+  flush({onlyIfChanged = false} = {}) {
     clearTimeout(this.timer);
     this.timer = null;
     if (this.dataDir === ':memory:') return Promise.resolve();
+    if (this.writing) { this.pendingWrite = this.revision !== this.savedRevision; return this.writing; }
+    if (onlyIfChanged && this.revision === this.savedRevision) return Promise.resolve();
     this.pendingWrite = true;
-    if (this.writing) return this.writing;
     this.writing = (async () => {
       while (this.pendingWrite) {
         this.pendingWrite = false;
@@ -131,11 +154,12 @@ export class Store {
     return this.writing;
   }
   async writeSnapshot() {
-    // Iterate existing maps with bounded batches. If a request changes them
-    // while I/O yields, discard this attempt and let flush coalesce a retry.
-    // Only an unchanged revision may be atomically promoted to disk.
     const revision = this.revision;
-    const state = this.state;
+    this.dirtySince = null;
+    // Copy synchronously before the first await. Records are replaced, never edited.
+    const copySlot = slot => slot && ({...slot, types: structuredClone(slot.types), docs: {...slot.docs}, tombstones: {...slot.tombstones}});
+    const state = {...copySlot(this.state), slots: {new: copySlot(this.state.slots.new), old: copySlot(this.state.slots.old)},
+      journals: structuredClone(this.state.journals), jobs: structuredClone(this.state.jobs), webhooks: structuredClone(this.state.webhooks), metadata: structuredClone(this.state.metadata)};
     await fs.mkdir(this.dataDir, {recursive: true});
     const target = join(this.dataDir, 'store.ndjson');
     const handle = await fs.open(`${target}.tmp`, 'w');
@@ -165,8 +189,9 @@ export class Store {
       await write({record: 'end'});
       if (batch) await handle.writeFile(batch);
     } finally { await handle.close(); }
-    if (this.revision !== revision) { this.pendingWrite = true; return; }
     await fs.rename(`${target}.tmp`, target);
+    this.savedRevision = revision;
+    if (this.revision !== revision) this.pendingWrite = true;
     const legacy = join(this.dataDir, 'store.json');
     try { await fs.rename(legacy, `${legacy}.migrated-${Date.now()}-${randomUUID()}`); }
     catch (error) {
@@ -187,7 +212,9 @@ export class Store {
     const target = this.slot(slot, true);
     const old = own(target.docs, id) ? target.docs[id] : null;
     if (snapshotTime && (Date.parse(old?.normalized._modified) > Date.parse(snapshotTime) || Date.parse(own(target.tombstones, id) ? target.tombstones[id] : null) > Date.parse(snapshotTime))) return {Status: 200, _index: 'default', _id: id, Result: 'noop'};
-    Object.defineProperty(target.docs, id, {value: normalizeDocument(raw, id, snapshotTime, locale), enumerable: true, writable: true, configurable: true});
+    const record = normalizeDocument(raw, id, snapshotTime, locale);
+    updateIndex(target.docs, id, old, record);
+    assign(target.docs, id, record);
     this.changed();
     return {Status: old ? 200 : 201, _index: 'default', _id: id, Result: old ? 'updated' : 'created'};
   }
@@ -197,12 +224,12 @@ export class Store {
     const exists = own(target.docs, id);
     if (snapshotTime && (Date.parse(exists ? target.docs[id].normalized._modified : null) > Date.parse(snapshotTime) || Date.parse(own(target.tombstones, id) ? target.tombstones[id] : null) > Date.parse(snapshotTime))) return {Status: 200, _index: 'default', _id: id, Result: 'noop'};
     if (snapshotTime && Number.isFinite(Date.parse(snapshotTime))) assign(target.tombstones, id, snapshotTime);
-    if (exists && hard) delete target.docs[id];
-    else if (exists) {
-      target.docs[id].normalized._deleted = true;
-      const raw = target.docs[id].raw; raw._deleted = true;
-      target.docs[id].rawJson = JSON.stringify(raw);
-      if (snapshotTime) target.docs[id].normalized._modified = snapshotTime;
+    if (exists) {
+      const old = target.docs[id];
+      const record = hard ? null : normalizeDocument({...old.raw, _deleted: true}, id, snapshotTime ?? old.normalized._modified, old.normalized._metadata?.locale);
+      if (record) record.normalized = {...old.normalized, _deleted: true, ...(snapshotTime ? {_modified: snapshotTime} : {})};
+      updateIndex(target.docs, id, old, record);
+      if (hard) delete target.docs[id]; else assign(target.docs, id, record);
     }
     this.changed();
     return {Status: 200, _index: 'default', _id: id, Result: exists ? 'deleted' : 'not_found'};
@@ -276,6 +303,7 @@ export class Store {
       delete this.state.metadata.newTypesUpdated; delete this.state.metadata.newTypesMethod;
     }
     else if (name === 'useNewAccountVersion' && this.state.slots.new) {
+      this.state.metadata.oldSlotSince = new Date().toISOString();
       this.state.slots.old = {types: this.state.types, docs: this.state.docs, tombstones: this.state.tombstones};
       for (const field of ['Updated', 'Method']) {
         const value = this.state.metadata[`liveTypes${field}`];
@@ -298,7 +326,7 @@ export class Store {
           if (old[`types${field}`] !== undefined) this.state.metadata[`liveTypes${field}`] = old[`types${field}`];
           else delete this.state.metadata[`liveTypes${field}`];
         }
-        delete this.state.slots.old;
+        delete this.state.slots.old; delete this.state.metadata.oldSlotSince;
       }
       delete this.state.slots.new; delete this.state.metadata.newTypesUpdated; delete this.state.metadata.newTypesMethod;
     }

@@ -31,7 +31,7 @@ export async function handleProtocol({path, method, url, text, bytes, headers, s
       delete target.types[source];
       if (url.searchParams.get('mode') === 'reset') {
         if (source === 'default') { target.docs = {}; delete store.state.slots.old; }
-        else for (const [id, record] of Object.entries(target.docs)) if (documentHasType(record.normalized, names)) delete target.docs[id];
+        else for (const [id, record] of Object.entries(target.docs)) if (documentHasType(record.normalized, names)) store.delete(id, {slot});
       }
       store.changed(); rebuild(); return send(200, {});
     }

@@ -1,3 +1,4 @@
+import {startRecycle} from './recycle.js';
 import http from 'node:http';
 import {product} from './product.js';
 import {aboutPage} from './about.js';
@@ -20,7 +21,7 @@ export {authenticate};
 
 /** Read environment settings; explicit createServer options override these. */
 export function configuration(env = process.env) {
-  return {port: Number(env.PORT ?? 8082), host: env.HOST ?? '127.0.0.1', corsOrigins: env.CORS_ORIGINS ?? '*', publicHostnames: env.PUBLIC_HOSTNAMES ?? '', appKey: env.GRAPH_APP_KEY ?? '', secret: env.GRAPH_SECRET ?? '', singleKey: env.GRAPH_SINGLE_KEY ?? '', tenantsFile: env.TENANTS_FILE ?? './tenants.json', adminUser: env.ADMIN_USER ?? '', adminPassword: env.ADMIN_PASSWORD ?? '', dataDir: env.DATA_DIR ?? './data', logDir: env.LOG_DIR ?? './logs', logBodies: (env.LOG_BODIES ?? 'true').toLowerCase() !== 'false'};
+  return {port: Number(env.PORT ?? 8082), host: env.HOST ?? '127.0.0.1', corsOrigins: env.CORS_ORIGINS ?? '*', publicHostnames: env.PUBLIC_HOSTNAMES ?? '', appKey: env.GRAPH_APP_KEY ?? '', secret: env.GRAPH_SECRET ?? '', singleKey: env.GRAPH_SINGLE_KEY ?? '', tenantsFile: env.TENANTS_FILE ?? './tenants.json', adminUser: env.ADMIN_USER ?? '', adminPassword: env.ADMIN_PASSWORD ?? '', dataDir: env.DATA_DIR ?? './data', logDir: env.LOG_DIR ?? './logs', ...(env.PREVIOUS_SLOT_HOURS !== undefined ? {previousSlotHours: env.PREVIOUS_SLOT_HOURS} : {}), ...(env.MEMORY_RECYCLE_MB !== undefined ? {memoryRecycleMb: env.MEMORY_RECYCLE_MB} : {}), logBodies: (env.LOG_BODIES ?? 'true').toLowerCase() !== 'false'};
 }
 
 export function localAuthorities(host, port) {
@@ -100,7 +101,7 @@ export function createServer(options = {}) {
       // Health never causes a store to load. Legacy logging remains accessible to old embedders.
       if (method === 'GET' && path === '/health') {
         if (registry.legacy) runtime = registry.get('default', false);
-        return send(200, {status: 'ok', product: product.key, version: product.version, dataVersion: product.dataVersion, ...(!loopback(config.host) && !validAdmin ? {} : {tenants: registry.health(), memory: processMemory()})});
+        return send(200, {status: 'ok', product: product.key, version: product.version, dataVersion: product.dataVersion, ...(!loopback(config.host) && !validAdmin ? {} : {tenants: registry.health(), memory: processMemory(), recycle: server.recycle.health()})});
       }
       if (adminRoute && !loopback(config.host)) {
         if (!validAdmin) {
@@ -154,7 +155,7 @@ export function createServer(options = {}) {
         if (!routed) return send(401, {message: registry.legacy ? 'Invalid credentials' : 'Unknown or missing credentials'});
         runtime = routed.runtime; identity = routed.identity;
         if (runtime.busy) return send(503, {message: 'Tenant storage maintenance in progress'});
-      } else if (!runtime && registry.legacy) runtime = registry.get('default');
+      } else if (!runtime && registry.legacy) runtime = registry.get('default', false);
       const auth = typeof identity === 'object' && identity ? identity.kind : identity;
       const pushRoute = /^\/(api|_stream|_doc|journal|account|extract|clientlog)(\/|$)/.test(path);
       if (pushRoute && auth !== 'basic') return send(401, {message: 'Invalid credentials'});
@@ -187,8 +188,9 @@ export function createServer(options = {}) {
   Object.defineProperty(server, 'store', {get() { return registry.entries.length === 1 ? registry.get(registry.entries[0].id).store : undefined; }});
   Object.defineProperty(server, 'recentRequests', {get() { return registry.entries.length === 1 ? registry.get(registry.entries[0].id, false).log.recent : registry.unrouted.recent; }});
   server.tenants = registry; server.config = config;
+  server.recycle = startRecycle({server, registry, logDir: config.logDir, logger, value: config.memoryRecycleMb});
   const close = server.close;
-  server.close = function(callback) { return close.call(this, async error => { await registry.close(); callback?.(error); }); };
+  server.close = function(callback) { server.recycle.stop(); return close.call(this, async error => { await registry.close(); callback?.(error); }); };
   return server;
 }
 

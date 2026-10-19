@@ -2,6 +2,16 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.1.0] - 2026-10-19
+
+### Changed
+- Add per-slot type, ID, key and URL indexes, compiled filters, full-text token caching and precomputed sort keys while retaining query results and order.
+- Persist consistent snapshots under continuous pushes, replace soft-deleted records and skip redundant shutdown snapshots.
+- Keep stores unloaded on the main dashboard and explorer picker; log first-load size and duration.
+- Expire previous rebuild slots after 24 hours by default; configure retention with `PREVIOUS_SLOT_HOURS`.
+- Add `MEMORY_RECYCLE_MB`, WinSW detection, connection draining, store flushing, exit 75 and a persisted hourly cooldown; expose status in admin health.
+- Add query, memory, compatibility and shutdown benchmarks; document measured performance and configuration.
+
 ## [1.0.2] - 2026-10-16
 
 ### Fixed
