@@ -12,3 +12,4 @@ scripts/*.exe
 dist/
 .test-runtime/
 release-notes.md
+perf-results/

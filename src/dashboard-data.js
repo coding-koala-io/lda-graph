@@ -37,7 +37,7 @@ export function stats(runtime) {
     return {id, contentTypes: names.size, docs: Object.values(store.state.docs).filter(record => documentHasType(record.normalized, names)).length};
   });
   return {id: runtime.tenant.id, docs: live, statuses, counts: [...counts].map(([key, count]) => ({type: JSON.parse(key)[0], locale: JSON.parse(key)[1], status: JSON.parse(key)[2], count})),
-    sources,
+    sources, oldSlotExpires: store.previousSlotExpires(),
     slots: {live, new: next ? Object.keys(next.docs).length : null, old: store.state.slots.old ? Object.keys(store.state.slots.old.docs).length : null}, tombstones: Object.keys(store.state.tombstones).length + Object.keys(next?.tombstones ?? {}).length,
     contentTypes: Object.keys(model?.contentTypes ?? {}).length, propertyTypes: Object.keys(model?.propertyTypes ?? {}).length, languages: Array.isArray(model?.languages) ? model.languages : [],
     typesUpdated: store.state.metadata.liveTypesUpdated ?? null, typesMethod: store.state.metadata.liveTypesMethod ?? null,
@@ -69,7 +69,7 @@ export function clearTenant(runtime, what) {
       delete slot.typesUpdated; delete slot.typesMethod;
     }
   }
-  if (all || what.includes('content')) delete state.slots.old;
+  if (all || what.includes('content')) { delete state.slots.old; delete state.metadata.oldSlotSince; }
   if (all || what.includes('types')) {
     for (const name of ['liveTypesUpdated', 'newTypesUpdated', 'liveTypesMethod', 'newTypesMethod']) delete state.metadata[name];
   }
