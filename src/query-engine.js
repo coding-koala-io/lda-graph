@@ -351,6 +351,7 @@ export function visibleRecord(record, context, store) {
 }
 
 function applyFacetFilters(records, filters, excludingPath) {
+  if (!filters.some(filter => filter.path !== excludingPath)) return records;
   return records.filter(({record, doc}) => filters.every(filter => filter.path === excludingPath ||
     (!skipped(record, filter.path) && valuesAt(doc, filter.path).some(value => {
       if (!['string', 'number', 'boolean'].includes(typeof value)) return false;
@@ -391,28 +392,33 @@ export function evaluateQuery(store, type, args, context) {
   const facetRecords = records;
   const facetFilters = args.facetFilters ?? [];
   records = applyFacetFilters(records, facetFilters);
-  const order = flattenOrder(args.orderBy);
-  if (!order.length) order.push(...(scoring(args.where) ? [['_ranking', 'RELEVANCE']] : [['_metadata.lastModified', 'DESC']]), ['_id', 'ASC']);
-  const scalarValue = value => ['string', 'number', 'boolean'].includes(typeof value) ? value : undefined;
-  for (const entry of records) entry.sortKeys = order.map(([path]) => path === '_ranking' || skipped(entry.record, path) ? undefined : scalarValue(valuesAt(entry.doc, path)[0]));
-  records.sort((a, b) => {
-    for (let i = 0; i < order.length; i++) {
-      const [path, direction] = order[i];
-      if (path === '_ranking') {
-        if (direction !== 'DOC' && a.score !== b.score) return b.score - a.score;
-        continue;
+  // Only the schema may opt out: autocomplete observes record order even when
+  // limit is zero. Facets use the original, unsorted facetRecords instead.
+  if (!args.unorderedAggregations) {
+    if (records === facetRecords) records = records.slice();
+    const order = flattenOrder(args.orderBy);
+    if (!order.length) order.push(...(scoring(args.where) ? [['_ranking', 'RELEVANCE']] : [['_metadata.lastModified', 'DESC']]), ['_id', 'ASC']);
+    const scalarValue = value => ['string', 'number', 'boolean'].includes(typeof value) ? value : undefined;
+    for (const entry of records) entry.sortKeys = order.map(([path]) => path === '_ranking' || skipped(entry.record, path) ? undefined : scalarValue(valuesAt(entry.doc, path)[0]));
+    records.sort((a, b) => {
+      for (let i = 0; i < order.length; i++) {
+        const [path, direction] = order[i];
+        if (path === '_ranking') {
+          if (direction !== 'DOC' && a.score !== b.score) return b.score - a.score;
+          continue;
+        }
+        const av = a.sortKeys[i];
+        const bv = b.sortKeys[i];
+        if (av === bv) continue;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        const comparison = av < bv ? -1 : av > bv ? 1 : 0;
+        if (comparison) return direction === 'DESC' ? -comparison : comparison;
       }
-      const av = a.sortKeys[i];
-      const bv = b.sortKeys[i];
-      if (av === bv) continue;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      const comparison = av < bv ? -1 : av > bv ? 1 : 0;
-      if (comparison) return direction === 'DESC' ? -comparison : comparison;
-    }
-    return 0;
-  });
-  for (const entry of records) delete entry.sortKeys;
+      return 0;
+    });
+    for (const entry of records) delete entry.sortKeys;
+  }
   const total = records.length;
   let offset = Math.max(0, args.skip ?? 0);
   if (args.cursor != null) {

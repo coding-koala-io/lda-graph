@@ -3,11 +3,14 @@ import {resolve, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {Store} from '../src/store.js';
 import * as current from '../src/query-engine.js';
-import {syntheticDocument} from './bench-query.mjs';
+import {syntheticDocument, benchModel} from './bench-query.mjs';
+import {buildSchema} from '../src/schema.js';
+import {graphql} from 'graphql';
 import {mkdir, writeFile} from 'node:fs/promises';
 const baseline = process.argv[2]; if (!baseline) throw new Error('Pass the read-only baseline checkout path');
 const {Store: BaselineStore} = await import(pathToFileURL(join(resolve(baseline), 'src/store.js')));
 const prior = await import(pathToFileURL(join(resolve(baseline), 'src/query-engine.js')));
+const {buildSchema: buildBaselineSchema} = await import(pathToFileURL(join(resolve(baseline), 'src/schema.js')));
 const quiet = {log() {}, error() {}};
 const stores = [new Store({dataDir: ':memory:', logger: quiet}), new BaselineStore({dataDir: ':memory:', logger: quiet})];
 for (let i = 0; i < 400; i++) {
@@ -32,6 +35,25 @@ for (const auth of ['basic', 'single', 'preview']) for (const type of ['_Content
   assert.equal(JSON.stringify(current.facets(now, 'Tags', {limit: 10})), JSON.stringify(prior.facets(before, 'Tags', {limit: 10})));
   assert.equal(JSON.stringify(current.autocomplete(now, 'Heading', {value: 'art'})), JSON.stringify(prior.autocomplete(before, 'Heading', {value: 'art'})));
   assert.equal(JSON.stringify(now.items.map(d => current.highlights(d))), JSON.stringify(before.items.map(d => prior.highlights(d))));
+  comparisons++;
+}
+// Exercise schema selection planning too: a zero-item query can skip sorting
+// only when no selected autocomplete depends on the result order.
+const schemas = [buildSchema(benchModel(), stores[0]), buildBaselineSchema(benchModel(), stores[1])];
+for (const limit of [0, 1]) for (const include of [false, true]) for (const direction of ['ASC', 'DESC']) {
+  const source = `query($include:Boolean!){Bench0(locale:ALL limit:${limit} skip:3 orderBy:{_metadata:{lastModified:${direction}}}){
+    total cursor items{_id _score} item{_id} ...Aggregations
+    hints:autocomplete @include(if:$include){_metadata{displayName(value:"Article",limit:7)}}
+  }} fragment Aggregations on Bench0Output {
+    choices:facets{Tags(filters:["Group1"] limit:10){name count} _metadata{status(limit:10){name count}}}
+  }`;
+  const results = [];
+  for (const schema of schemas) {
+    const result = await graphql({schema, source, variableValues: {include}, contextValue: {auth: 'basic'}});
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    results.push(result.data);
+  }
+  assert.equal(JSON.stringify(results[0]), JSON.stringify(results[1]), source);
   comparisons++;
 }
 for (const store of stores) { store.mutate('deployNewAccountVersion'); store.upsert('staged', syntheticDocument(1), {slot: 'new'}); store.mutate('useNewAccountVersion'); }

@@ -355,14 +355,20 @@ powershell -ExecutionPolicy Bypass -File scripts\service.ps1 install -RuntimeRoo
 
 Measured on Windows with Node 24.11.1, 60,000 synthetic documents, 20 types, two locales and mixed HTML. Times below are round-trip p95 milliseconds after three warmups, with 12 idle samples and 32 samples in four waves of eight clients. Both versions ran as separate children on ephemeral ports with in-memory data and logs; 1.0.2 used a read-only checkout.
 
+Each cell shows run 1 / run 2 from two complete runs per tree. All six response-data hashes matched across all four runs.
+
 | Query | 1.0.2 idle | 1.1.0 idle | 1.0.2 eight clients | 1.1.0 eight clients |
 | --- | ---: | ---: | ---: | ---: |
-| Key lookup | 247.3 | 1.3 | 2090.4 | 6.9 |
-| URL lookup | 494.4 | 1.6 | 2688.5 | 4.6 |
-| Typed list, 50 items | 53.1 | 10.3 | 350.3 | 57.3 |
-| Facets | 203.4 | 202.4 | 1389.7 | 1254.1 |
-| Full-text match | 831.8 | 84.2 | 5083.9 | 575.7 |
-| CMS search with ranking | 809.4 | 88.9 | 5209.2 | 644.4 |
+| Key lookup | 319.7 / 216.5 | 1.4 / 1.9 | 1972.3 / 1696.4 | 7.2 / 7.4 |
+| URL lookup | 388.6 / 449.3 | 1.1 / 1.3 | 2455.0 / 2744.8 | 5.1 / 4.9 |
+| Typed list, 50 items | 47.8 / 56.1 | 10.2 / 9.5 | 399.8 / 368.5 | 74.0 / 54.7 |
+| Facets | 215.7 / 209.7 | 156.5 / 144.8 | 1453.7 / 1309.1 | 986.3 / 941.8 |
+| Full-text match | 776.2 / 772.5 | 124.3 / 143.2 | 5242.9 / 5983.0 | 772.3 / 901.2 |
+| CMS search with ranking | 778.8 / 845.7 | 122.8 / 123.9 | 5060.6 / 5583.0 | 811.4 / 965.4 |
+
+Zero-item aggregation queries skip sort-key decoration and sorting when no autocomplete is selected; autocomplete retains its ordering. No-op facet filters avoid copying the full result array. CPU profiles of 40 warm executions of the exact facet selection took 6.97 s in 1.0.2, 8.54 s before the fix and 4.59 s after it (excluding seed/warmup and HTTP).
+
+After creating `perf-results/`, reproduce a facet CPU profile with `node --cpu-prof --cpu-prof-dir=perf-results --cpu-prof-name=facets.cpuprofile scripts/profile-facets.mjs` (optionally `--root <read-only-checkout>`). Run `node scripts/summarize-cpu-profile.mjs perf-results/facets.cpuprofile perf-results/facets.phase.json` to report only warm query samples, excluding seeding and warmup.
 
 All specified targets were met. Full-text-only caching added 30.6 MiB of retained heap after forced GC (15.2% above the same indexed store without caches). All-field caching measured 60.3%, so field token caches and retained stripped texts were omitted. Dirty 60,000-document shutdown flushes took 436–516 ms; an already saved store skipped its snapshot. On Windows the signal benchmark dispatches SIGINT/SIGTERM/SIGBREAK process events through IPC, as the service tests do.
 
