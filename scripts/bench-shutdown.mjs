@@ -1,6 +1,6 @@
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
-import {mkdtemp, rm, readFile, writeFile} from 'node:fs/promises';
+import {mkdir, mkdtemp, rm, readFile, writeFile} from 'node:fs/promises';
 import {join, resolve, relative, isAbsolute} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
@@ -48,5 +48,6 @@ if (process.env.PERF_SHUTDOWN_CHILD === 'true') {
       await rm(root, {recursive: true, force: true});
     }
   }
+  await mkdir('perf-results', {recursive: true});
   await writeFile('perf-results/shutdown.json', JSON.stringify({n, results}, null, 2) + '\n');
 }

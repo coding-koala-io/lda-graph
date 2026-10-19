@@ -50,7 +50,11 @@ export class Store {
     this.dataDir = dataDir;
     this.logger = logger;
     this.tenant = tenant;
-    this.previousSlotHours = Math.max(0, Number(previousSlotHours) || 0);
+    this.previousSlotHours = Number(previousSlotHours);
+    if (!Number.isFinite(this.previousSlotHours) || this.previousSlotHours < 0 || String(previousSlotHours).trim() === '') {
+      (logger.warn ?? logger.error).call(logger, `[${tenant}] Invalid PREVIOUS_SLOT_HOURS ${JSON.stringify(previousSlotHours)}; using default 24`);
+      this.previousSlotHours = 24;
+    }
     this.savedRevision = -1; this.dirtySince = null;
     this.state = emptyState();
     this.timer = null;
@@ -121,7 +125,7 @@ export class Store {
   previousSlotExpires() {
     return this.state.slots.old && this.previousSlotHours ? new Date(Date.parse(this.state.metadata.oldSlotSince) + this.previousSlotHours * 3600000).toISOString() : null;
   }
-  dispose() { clearInterval(this.expiryTimer); }
+  dispose() { clearInterval(this.expiryTimer); clearTimeout(this.timer); this.timer = null; }
   slot(name = 'live', create = false) {
     if (name !== 'new') return this.state;
     if (!this.state.slots.new && create) this.state.slots.new = emptySlot();
@@ -142,12 +146,13 @@ export class Store {
     clearTimeout(this.timer);
     this.timer = null;
     if (this.dataDir === ':memory:') return Promise.resolve();
-    if (this.writing) { this.pendingWrite = this.revision !== this.savedRevision; return this.writing; }
+    if (this.writing) { this.pendingWrite = this.revision !== this.writingRevision; return this.writing; }
     if (onlyIfChanged && this.revision === this.savedRevision) return Promise.resolve();
     this.pendingWrite = true;
     this.writing = (async () => {
       while (this.pendingWrite) {
         this.pendingWrite = false;
+        this.writingRevision = this.revision;
         await this.writeSnapshot();
       }
     })().finally(() => { this.writing = null; });
@@ -159,7 +164,7 @@ export class Store {
     // Copy synchronously before the first await. Records are replaced, never edited.
     const copySlot = slot => slot && ({...slot, types: structuredClone(slot.types), docs: {...slot.docs}, tombstones: {...slot.tombstones}});
     const state = {...copySlot(this.state), slots: {new: copySlot(this.state.slots.new), old: copySlot(this.state.slots.old)},
-      journals: structuredClone(this.state.journals), jobs: structuredClone(this.state.jobs), webhooks: structuredClone(this.state.webhooks), metadata: structuredClone(this.state.metadata)};
+      journals: {...this.state.journals}, jobs: {...this.state.jobs}, webhooks: [...this.state.webhooks], metadata: structuredClone(this.state.metadata)};
     await fs.mkdir(this.dataDir, {recursive: true});
     const target = join(this.dataDir, 'store.ndjson');
     const handle = await fs.open(`${target}.tmp`, 'w');
@@ -326,8 +331,9 @@ export class Store {
           if (old[`types${field}`] !== undefined) this.state.metadata[`liveTypes${field}`] = old[`types${field}`];
           else delete this.state.metadata[`liveTypes${field}`];
         }
-        delete this.state.slots.old; delete this.state.metadata.oldSlotSince;
+        delete this.state.slots.old;
       }
+      if (!this.state.slots.old) delete this.state.metadata.oldSlotSince;
       delete this.state.slots.new; delete this.state.metadata.newTypesUpdated; delete this.state.metadata.newTypesMethod;
     }
     this.changed(); return 'done';

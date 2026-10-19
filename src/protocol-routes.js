@@ -30,13 +30,13 @@ export async function handleProtocol({path, method, url, text, bytes, headers, s
       const names = new Set(Object.keys(ownValue(target.types, source)?.contentTypes ?? {}));
       delete target.types[source];
       if (url.searchParams.get('mode') === 'reset') {
-        if (source === 'default') { target.docs = {}; delete store.state.slots.old; }
+        if (source === 'default') { target.docs = {}; delete store.state.slots.old; delete store.state.metadata.oldSlotSince; }
         else for (const [id, record] of Object.entries(target.docs)) if (documentHasType(record.normalized, names)) store.delete(id, {slot});
       }
       store.changed(); rebuild(); return send(200, {});
     }
   }
-  if (method === 'DELETE' && path === '/api/content/v2/data') { store.slot(slot, true).docs = {}; delete store.state.slots.old; store.changed(); return send(200, {}); }
+  if (method === 'DELETE' && path === '/api/content/v2/data') { store.slot(slot, true).docs = {}; delete store.state.slots.old; delete store.state.metadata.oldSlotSince; store.changed(); return send(200, {}); }
   if (method === 'POST' && path === '/_stream') {
     const journalId = store.stream(text, slot); const journal = store.state.journals[journalId]; diagnostic.ops = journal.itemCount ?? journal.items.length; diagnostic.journal = journalId;
     return send(200, {journalId});

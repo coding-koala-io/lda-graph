@@ -69,7 +69,7 @@ export function clearTenant(runtime, what) {
       delete slot.typesUpdated; delete slot.typesMethod;
     }
   }
-  if (all || what.includes('content')) delete state.slots.old;
+  if (all || what.includes('content')) { delete state.slots.old; delete state.metadata.oldSlotSince; }
   if (all || what.includes('types')) {
     for (const name of ['liveTypesUpdated', 'newTypesUpdated', 'liveTypesMethod', 'newTypesMethod']) delete state.metadata[name];
   }

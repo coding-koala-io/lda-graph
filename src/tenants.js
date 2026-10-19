@@ -141,7 +141,10 @@ export class TenantRegistry {
     for (const [, runtime] of evicted) runtime.busy = true;
     const moved = [];
     try {
-      for (const [, runtime] of evicted) if (runtime.store) await runtime.store.flush({onlyIfChanged: true});
+      for (const [, runtime] of evicted) if (runtime.store) {
+        runtime.store.dispose();
+        await runtime.store.flush({onlyIfChanged: true});
+      }
       checkTargets();
       for (const move of moves) if (existsSync(move.from)) { renameSync(move.from, move.to); moved.push(move); }
       await commit();

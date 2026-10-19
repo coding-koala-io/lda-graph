@@ -369,7 +369,7 @@ export function evaluateQuery(store, type, args, context) {
   let records = [];
   const docs = store.slot(slot).docs;
   const predicate = compileWhere(args.where);
-  for (const id of candidatesFor(docs, type, args)) {
+  for (const id of candidatesFor(docs, type, args, record => warnBadRecord(store, record, new Error('Invalid normalized record')))) {
     const record = docs[id];
     try {
       if (!record?.normalized || !Array.isArray(record.searchable) || !Array.isArray(record.skipped)) throw new Error('Invalid normalized record');

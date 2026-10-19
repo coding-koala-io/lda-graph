@@ -18,7 +18,7 @@ function entries(record) {
 export function getIndex(docs) {
   let index = indexes.get(docs);
   if (!index) {
-    index = {byType: new Map(), byValue: new Map(), sequence: new Map(), idsUnindexed: new Set(), next: 0};
+    index = {byType: new Map(), byValue: new Map(), sequence: new Map(), idsUnindexed: new Set(), malformed: new Map(), next: 0};
     indexes.set(docs, index);
     for (const id of Object.keys(docs)) updateIndex(docs, id, null, docs[id]);
   }
@@ -27,6 +27,8 @@ export function getIndex(docs) {
 export function updateIndex(docs, id, before, after) {
   const index = indexes.get(docs);
   if (!index) return; // First query builds it lazily.
+  index.malformed.delete(id);
+  if (after && !after.normalized) index.malformed.set(id, after);
   const mapFor = path => path === null ? index.byType : (index.byValue.get(path) ?? (index.byValue.set(path, new Map()), index.byValue.get(path)));
   for (const [path, value] of entries(before)) {
     const map = mapFor(path); const ids = map.get(value);
@@ -52,8 +54,9 @@ export function orderedCandidates(index, candidates, docs) {
   return [...candidates].sort((a, b) => integer(a) ? (integer(b) ? Number(a) - Number(b) : -1) : integer(b) ? 1 : index.sequence.get(a) - index.sequence.get(b));
 }
 
-export function candidatesFor(docs, type, args) {
+export function candidatesFor(docs, type, args, onMalformed) {
   const index = getIndex(docs);
+  if (onMalformed) for (const record of index.malformed.values()) onMalformed(record);
   let candidates = index.byType.get(type) ?? new Set();
   const hits = (path, values) => new Set(values.flatMap(v => [...(index.byValue.get(path)?.get(indexValue(v)) ?? [])]));
   const intersect = other => { const [small, large] = candidates.size < other.size ? [candidates, other] : [other, candidates]; candidates = new Set([...small].filter(id => large.has(id))); };

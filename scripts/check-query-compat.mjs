@@ -4,7 +4,7 @@ import {pathToFileURL} from 'node:url';
 import {Store} from '../src/store.js';
 import * as current from '../src/query-engine.js';
 import {syntheticDocument} from './bench-query.mjs';
-import {writeFile} from 'node:fs/promises';
+import {mkdir, writeFile} from 'node:fs/promises';
 const baseline = process.argv[2]; if (!baseline) throw new Error('Pass the read-only baseline checkout path');
 const {Store: BaselineStore} = await import(pathToFileURL(join(resolve(baseline), 'src/store.js')));
 const prior = await import(pathToFileURL(join(resolve(baseline), 'src/query-engine.js')));
@@ -43,4 +43,4 @@ for (const ids of [[], ['doc-1'], ['KEY-17'], ['doc-2', 'KEY-1', 'KEY-4']]) {
 }
 stores[0].dispose();
 const result = {baseline: resolve(baseline), comparisons, result: 'identical JSON query data, facets, autocomplete and highlights; random correlation IDs excluded'};
-console.log(JSON.stringify(result)); await writeFile('perf-results/compatibility.json', JSON.stringify(result, null, 2) + '\n');
+console.log(JSON.stringify(result)); await mkdir('perf-results', {recursive: true}); await writeFile('perf-results/compatibility.json', JSON.stringify(result, null, 2) + '\n');

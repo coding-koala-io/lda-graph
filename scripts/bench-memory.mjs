@@ -2,7 +2,7 @@ import {Store} from '../src/store.js';
 import {cachedFulltext, compileWhere, autocomplete} from '../src/query-engine.js';
 import {syntheticDocument} from './bench-query.mjs';
 import {getIndex} from '../src/indexes.js';
-import {writeFile} from 'node:fs/promises';
+import {mkdir, writeFile} from 'node:fs/promises';
 if (!global.gc) throw new Error('Run with --expose-gc');
 const n = Number(process.argv[2] ?? 60000);
 const store = new Store({dataDir: ':memory:'});
@@ -15,5 +15,6 @@ autocomplete({records: Object.values(store.state.docs).map(record => ({record, d
 global.gc(); const cachedHeap = process.memoryUsage().heapUsed;
 const result = {n, baselineHeap, cachedHeap, delta: cachedHeap - baselineHeap, percent: (cachedHeap - baselineHeap) / baselineHeap * 100, docsRetained: Object.keys(store.state.docs).length};
 console.log(JSON.stringify(result, null, 2));
+await mkdir('perf-results', {recursive: true});
 await writeFile('perf-results/memory.json', JSON.stringify(result, null, 2) + '\n');
 store.dispose();

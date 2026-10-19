@@ -99,8 +99,8 @@ Optional: run it as a Windows service so it starts with your machine (see [Run a
 | `DATA_DIR` | `./data` | Atomic `DATA_DIR/<tenantId>/store.ndjson` persistence; also reads legacy `store.json`. `:memory:` disables it. |
 | `LOG_DIR` | `./logs` | `<tenantId>/requests.ndjson`, rotated at 50 MB with three archives (`.1`–`.3`); `:memory:` keeps only the in-memory request history. |
 | `LOG_BODIES` | `true` | Request/response bodies, truncated to 64 KB; `false` records null bodies. |
-| `PREVIOUS_SLOT_HOURS` | `24` | Previous-slot retention in hours after promotion; `0` keeps it forever. Checked on load and every 10 minutes. |
-| `MEMORY_RECYCLE_MB` | automatic | Heap-used threshold in MiB; `0` disables recycling, a positive number enables it everywhere. Unset enables it only on Windows with WinSW's inherited `BASE`, at 75% of the V8 heap limit. Three high readings 30 seconds apart trigger a save and exit 75; at most once per hour, tracked in `LOG_DIR/_recycle.json`. |
+| `PREVIOUS_SLOT_HOURS` | `24` | Previous-slot retention in hours after promotion; `0` keeps it forever. Invalid or negative values warn and use 24. Checked on load and every 10 minutes. |
+| `MEMORY_RECYCLE_MB` | automatic | Heap-used threshold in MiB; `0` disables recycling, a positive number enables it everywhere. Unset enables it only on Windows with both WinSW's inherited `BASE` and `SERVICE_ID`, at 75% of the V8 heap limit. Three high readings 30 seconds apart trigger a save and exit 75; at most once per hour, tracked in `LOG_DIR/_recycle.json`. After a recycle, sustained high startup/load readings warn and disable recycling for that process. |
 
 A non-loopback `HOST` (for example `0.0.0.0`) prints a loud startup warning: the server is for development only, anyone on the network can reach it, and a shared or production site must never point at it.
 
@@ -368,7 +368,7 @@ All specified targets were met. Full-text-only caching added 30.6 MiB of retaine
 
 Run `node scripts/bench-query.mjs` for the default workload; pass `--root <read-only-checkout>` for another version, or `--docs`, `--samples`, `--rounds` and `--output` to adjust the run. Run `node --expose-gc scripts/bench-memory.mjs`, `node scripts/bench-shutdown.mjs` and `node scripts/check-query-compat.mjs <baseline-checkout>` for the memory, shutdown and result comparisons. The scripts write raw measurements to `perf-results/` (not committed). These are warm-query measurements; tenant loading and lazy index construction happen before timing.
 
-Automatic recycling uses the child-process `BASE` variable documented in [WinSW 2.12.0's environment-variable expansion](https://github.com/winsw/winsw/blob/v2.12.0/doc/xmlConfigFile.md#environment-variable-expansion).
+Automatic recycling requires Windows plus both `BASE` and `SERVICE_ID`. [WinSW 2.12.0's XmlServiceConfig.cs, lines 51–60](https://github.com/winsw/winsw/blob/v2.12.0/src/WinSW.Core/Configuration/XmlServiceConfig.cs#L51-L60) sets these variables in the wrapper environment inherited by the child. After a recycle, three high readings immediately after startup or a tenant load disable recycling for that process and warn that the live data needs a higher heap or recycle limit. `_recycle.json` records `lastStartAboveThreshold`; later process starts reassess the limit. Invalid or negative `PREVIOUS_SLOT_HOURS` values warn and use the default 24 hours.
 
 ## Limitations
 

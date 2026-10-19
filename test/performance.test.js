@@ -128,7 +128,7 @@ test('recycle requires 3 consecutive checks, respects cooldown and warns hourly'
   now += 3600000; assert.equal(tick(11, new Date(now).toISOString()), 'warn'); assert.equal(tick(11, last), 'recycle');
   assert.deepEqual(recycleSettings({value: '0'}), {enabled: false, thresholdMb: 0}); assert.equal(recycleSettings({value: '12', platform: 'linux'}).enabled, true);
   assert.equal(recycleSettings({value: null, env: {}, platform: 'win32'}).enabled, false);
-  assert.deepEqual(recycleSettings({value: null, env: {BASE: 'synthetic-wrapper'}, platform: 'win32', heapLimit: 100 * 1048576}), {enabled: true, thresholdMb: 75});
+  assert.deepEqual(recycleSettings({value: null, env: {BASE: 'synthetic-wrapper', SERVICE_ID: 'test'}, platform: 'win32', heapLimit: 100 * 1048576}), {enabled: true, thresholdMb: 75});
 });
 
 test('recycle drains connections, flushes despite failures, persists cooldown and exits 75 via injection', async t => {

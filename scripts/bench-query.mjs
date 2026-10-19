@@ -23,7 +23,7 @@ export function workloads(n) {
     cms: `{_Content(locale:ALL where:{_fulltext:{match:"koala"}} orderBy:{_ranking:RELEVANCE,_metadata:{displayName:ASC}} limit:50){${fields}}}`,
   };
 }
-export async function runBenchmark({root = resolve(import.meta.dirname, '..'), n = 60000, samples = 12, rounds = 4, output} = {}) {
+export async function runBenchmark({root = resolve(import.meta.dirname, '..'), n = 60000, samples = 12, rounds = 4, output = 'perf-results/query.json'} = {}) {
   root = resolve(root);
   const child = spawn(process.execPath, ['--expose-gc', join(root, 'src/server.js')], {cwd: root, windowsHide: true, env: {...process.env, PORT: '0', HOST: '127.0.0.1', DATA_DIR: ':memory:', LOG_DIR: ':memory:', TENANTS_FILE: join(root, '__benchmark_missing_tenants__.json'), GRAPH_APP_KEY: '', GRAPH_SECRET: '', GRAPH_SINGLE_KEY: '', ADMIN_USER: '', ADMIN_PASSWORD: '', MEMORY_RECYCLE_MB: '0'}, stdio: ['ignore', 'pipe', 'pipe']});
   let stderr = ''; let stdout = '';
