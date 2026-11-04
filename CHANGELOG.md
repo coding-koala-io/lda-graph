@@ -2,6 +2,11 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.2.1] - unreleased
+
+### Changed
+- README: "Our senior developer reviews and tests every change." (singular).
+
 ## [1.2.0] - 2026-11-04
 
 ### Changed
