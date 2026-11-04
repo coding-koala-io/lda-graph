@@ -1,7 +1,7 @@
 {
   "name": "lda-graph",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "LDA Local Graph \u2014 a local Graph service for development, compatible with Optimizely CMS 13. Part of Local Developer Accelerator by Coding Koala. Development use only.",
   "main": "src/server.js",
   "scripts": {
