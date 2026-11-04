@@ -47,7 +47,7 @@ Full list: [Limitations](#limitations).
 
 ## Upgrading a site from CMS 12?
 
-Most CMS 12 sites need a .NET 10 move, package changes and, if they use Search & Navigation, a search rebuild. [RepoKoala](https://repokoala.com/?utm_source=github&utm_medium=readme&utm_campaign=lda-graph) gives a written readiness report with a fixed price per application, before you commit budget. Our senior developers review and test every change.
+Most CMS 12 sites need a .NET 10 move, package changes and, if they use Search & Navigation, a search rebuild. [RepoKoala](https://repokoala.com/?utm_source=github&utm_medium=readme&utm_campaign=lda-graph) gives a written readiness report with a fixed price per application, before you commit budget. Our senior developer reviews and tests every change.
 
 ## Getting started from source
 
