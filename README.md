@@ -12,9 +12,9 @@
 
 # LDA Local Graph
 
-**Optimizely Graph for CMS 13, running on your own laptop.** Publish in the CMS, query in GraphiQL, and see every sync request, without waiting for a cloud Graph environment.
+**A local development tool compatible with Optimizely CMS 13: a Graph stand-in on your own laptop.** Publish in the CMS, query in GraphiQL, and see every sync request, without waiting for a cloud Graph environment.
 
-Part of **Local Developer Accelerator** by Coding Koala. Compatible with Optimizely CMS 13. Development use only, not for production. Not affiliated with or endorsed by Optimizely.
+Part of **Local Developer Accelerator by Coding Koala**. Compatible with Optimizely CMS 13. Development use only, not for production. Not affiliated with or endorsed by Optimizely.
 
 ## 2-minute quick start
 
