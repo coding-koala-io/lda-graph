@@ -19,7 +19,7 @@ Every commit must be signed off (`git commit -s`), certifying the Developer Cert
 
 ## Licence of contributions
 
-Contributions are licensed to you and us under the same licence as this repository (Business Source License 1.1). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.
+Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.
 
 Publisher: Coding Koalas Pty Ltd (ACN 668 775 433). Legal questions: legal@codingkoala.io.
 

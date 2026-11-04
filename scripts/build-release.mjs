@@ -7,7 +7,7 @@ import {product} from '../src/product.js';
 
 const repo = resolve(import.meta.dirname, '..');
 export const archiveTool = process.platform === 'win32' ? join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
-export const releaseFiles = ['src', 'scripts/service.ps1', 'scripts/service-xml.js', 'package.json', 'LICENSE.md', 'README.md', 'LEGAL-NOTICE.md', 'PRIVACY.md', 'CHANGELOG.md', 'CLEAN-ROOM.md', 'TAKEDOWN-AND-CONTACT.md', 'CONTRIBUTING.md', 'docs/protocol.md', 'docs/RELEASING.md'];
+export const releaseFiles = ['src', 'scripts/service.ps1', 'scripts/service-xml.js', 'package.json', 'LICENSE.md', 'NOTICE', 'README.md', 'LEGAL-NOTICE.md', 'PRIVACY.md', 'CHANGELOG.md', 'CLEAN-ROOM.md', 'TAKEDOWN-AND-CONTACT.md', 'CONTRIBUTING.md', 'docs/protocol.md', 'docs/RELEASING.md'];
 
 export function releaseMetadata(bytes, {commit = null, builtAt = new Date().toISOString()} = {}) {
   const file = `lda-${product.key}-${product.version}.zip`;

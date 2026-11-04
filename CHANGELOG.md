@@ -2,6 +2,11 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [Unreleased]
+
+### Changed
+- Licence: versions up to and including 1.1.0 stay under the Business Source License 1.1; from the next release the code is under the Apache License 2.0 (see LICENSE.md and NOTICE).
+
 ## [1.1.0] - 2026-10-19
 
 ### Changed

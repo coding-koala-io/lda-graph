@@ -136,5 +136,5 @@ test('release build ZIP starts from an empty folder and serves the correct healt
   const response = await fetch(`http://127.0.0.1:${match[1]}/health`);
   assert.equal(response.status, 200); const health = await response.json();
   assert.equal(health.product, 'graph'); assert.equal(health.version, product.version); assert.equal(health.dataVersion, 1); assert.equal(health.status, 'ok');
-  const legal = await fetch(`http://127.0.0.1:${match[1]}/about/licence`); assert.equal(legal.status, 200); assert.ok((await legal.text()).includes('Business Source License 1.1'));
+  const legal = await fetch(`http://127.0.0.1:${match[1]}/about/licence`); assert.equal(legal.status, 200); assert.ok((await legal.text()).includes('Apache License'));
 });
