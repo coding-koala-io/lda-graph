@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 
 export const key = 'graph';
 export const name = 'LDA Local Graph';
-export const suite = 'Local Developer Accelerator for Optimizely';
+export const suite = 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13';
 export const publisher = 'Coding Koalas Pty Ltd';
 export const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 export const dataVersion = 1;

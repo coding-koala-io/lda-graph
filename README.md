@@ -1,4 +1,4 @@
-> **Development and research use only. Never use in production.**
+> **Development and research use only. Not designed or tested for production use.**
 > LDA Local Graph runs local stand-ins for Optimizely cloud services on a single
 > developer machine. It is not a replacement for any Optimizely service: its
 > behaviour, limits and performance differ, so always test against the real services
@@ -12,28 +12,42 @@
 
 # LDA Local Graph
 
-Part of **Local Developer Accelerator for Optimizely** — by Coding Koala. Compatible with Optimizely Graph for CMS 13.
+**Optimizely Graph for CMS 13, running on your own laptop.** Publish in the CMS, query in GraphiQL, and see every sync request, without waiting for a cloud Graph environment.
 
-## Install with the LDA CLI
+Part of **Local Developer Accelerator** by Coding Koala. Compatible with Optimizely CMS 13. Development use only, not for production. Not affiliated with or endorsed by Optimizely.
+
+## 2-minute quick start
 
 ```powershell
 irm https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.ps1 | iex
 lda install graph
 ```
 
-`lda self-update` updates the CLI.
+1. Open <http://localhost:8082/>, create a tenant and copy the `Optimizely:ContentGraph` settings it shows.
+2. Paste them into your CMS site's `appsettings.Development.json`, then start the CMS (start this server first).
+3. In the CMS, run the scheduled job **Optimizely Graph Full Synchronization**. Your content is now queryable at `/graphiql`.
 
-A single Node.js process that accepts content and type pushes from an Optimizely CMS 13 site and answers its GraphQL queries locally.
+Working on the code itself? See [Getting started from source](#getting-started-from-source).
 
-## Why this exists
+## Why developers use it
 
-- **Faster inner loop.** Build and debug CMS 13 sites that use Graph without waiting on a cloud service: publish, sync and query all happen on your machine.
-- **Works offline.** Develop and debug against the Graph APIs on your own machine, with no wait for a cloud sync.
-- **Everything is visible.** Every sync and query request is recorded in a request log, with raw documents, sync journals and jobs, so integration problems can be traced to the exact request.
-- **Several sites, one instance.** Multiple CMS sites can run against one local server, each with its own isolated data and keys.
-- **Easy to reset and replay.** Clear content, types, history or everything for one site and run a full synchronization again in seconds.
+- **Faster inner loop.** Publish, sync and query on your machine, before your Graph environment is set up.
+- **Every request visible.** A request log per site, with raw documents and sync journals, so you can trace a problem to the exact request.
+- **Several sites, one server.** Each site gets its own data and keys.
+- **Reset in seconds.** Clear content, types or history for one site and sync again.
 
-It is for development and research use only.
+## What it doesn't do (read before you rely on it)
+
+- No semantic ranking, stemming or synonyms: search uses text relevance only.
+- No click tracking (`_track` returns null), no webhook delivery, no remote extraction.
+- One JavaScript thread; small and medium development sites, not load testing.
+- Behaviour and limits differ from the real service. Always test against Optimizely Graph before release.
+
+Full list: [Limitations](#limitations).
+
+## Upgrading a site from CMS 12?
+
+Most CMS 12 sites need a .NET 10 move, package changes and, if they use Search & Navigation, a search rebuild. [RepoKoala](https://repokoala.com/?utm_source=github&utm_medium=readme&utm_campaign=lda-graph) gives a written readiness report with a fixed price per application, before you commit budget. Our senior developers review and test every change.
 
 ## Getting started from source
 
@@ -81,7 +95,6 @@ Optional: run it as a Windows service so it starts with your machine (see [Run a
 - **Nothing shows up after publishing.** Open the tenant's request log to see whether the CMS sent anything, then run **Optimizely Graph Full Synchronization** again.
 - **Port 8082 is already in use.** Start on another port with the `PORT` environment variable (for example `$env:PORT = '8090'; npm start`) and update `GatewayAddress`.
 - **After `git pull`.** Run `npm install`, then restart the server. With the Windows service: stop the service first, then pull and install, then start it again.
-- **Updating an older CLI installation.** Earlier documentation used `npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/download/v1.0.0/coding-koala-io-accelerator-1.0.0.tgz`. Use the installer above for new installations and `lda self-update` for existing ones. Once the CLI is published to npm, `npm i -g @coding-koala-io/accelerator` will also be available.
 
 ## Configuration
 
@@ -392,7 +405,7 @@ Automatic recycling requires Windows plus both `BASE` and `SERVICE_ID`. [WinSW 2
 
 ## License
 
-Business Source License 1.1 — free for development, testing, demos and other non-production use by anyone, including companies. Production use is not permitted. Version 1.0.0 converts to Apache License 2.0 on the Change Date, 2030-10-16. See [LICENSE.md](LICENSE.md).
+Open source under the Apache License 2.0. Free to use, change and share. It is still a development tool: not for production use, and provided "as is". See [LICENSE.md](LICENSE.md).
 
 Published by Coding Koalas Pty Ltd (ACN 668 775 433). See [Legal notice](LEGAL-NOTICE.md), [Privacy](PRIVACY.md), [Clean-room record](CLEAN-ROOM.md), [Rights-holder contact](TAKEDOWN-AND-CONTACT.md) and [Contributing](CONTRIBUTING.md). Legal: legal@codingkoala.io; privacy: privacy@codingkoala.io; security: security@codingkoala.io.
 

@@ -236,7 +236,7 @@ test('README upgrade path from the pre-rename service id, CONTRIBUTING DCO/licen
   for (const text of [`## Upgrading from an older install (${legacy})`, 'lda adopt', `sc.exe stop ${legacy}`, `sc.exe delete ${legacy}`, 'scripts\\service.ps1 install -RuntimeRoot "<old runtime folder>"', 'the data folder is not touched']) assert.ok(readme.includes(text), text);
   const contributing = readFileSync(join(repo, 'CONTRIBUTING.md'), 'utf8');
   assert.ok(!contributing.includes('lawyer review'));
-  for (const text of ['`git commit -s`', 'https://developercertificate.org/', 'Contributions are licensed to you and us under the same licence as this repository (Business Source License 1.1). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.']) assert.ok(contributing.includes(text), text);
+  for (const text of ['`git commit -s`', 'https://developercertificate.org/', 'Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.']) assert.ok(contributing.includes(text), text);
   const cleanRoom = readFileSync(join(repo, 'CLEAN-ROOM.md'), 'utf8');
   assert.ok(!cleanRoom.includes('lawyer review'));
   assert.ok(!cleanRoom.includes('remains to be confirmed'));

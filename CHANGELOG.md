@@ -2,6 +2,14 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.2.0] - 2026-11-04
+
+### Changed
+- Licence changed to Apache 2.0; earlier versions stay under the Business Source License 1.1. Versions up to and including 1.1.0 keep that licence. LICENSE.md is now the standard Apache License 2.0 text, and a NOTICE file ships with every release.
+- Product name is now "Local Developer Accelerator (LDA), compatible with Optimizely CMS 13" in the documents, About page and page banner.
+- Legal notice: production wording now reads "Not designed or tested for production use. Provided 'as is', without warranties, under sections 7 and 8 of the Apache License 2.0. Nothing here limits rights you have under law that cannot be excluded."
+- README: new top section with a 2-minute quick start through the one-line installer, what it does not do, and the licence section for Apache 2.0.
+
 ## [1.1.0] - 2026-10-19
 
 ### Changed
