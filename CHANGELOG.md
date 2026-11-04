@@ -2,7 +2,7 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
-## [1.2.2] - unreleased
+## [1.2.2] - 2026-11-04
 
 ### Changed
 - README headline: a local development tool compatible with Optimizely CMS 13.
