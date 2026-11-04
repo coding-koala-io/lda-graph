@@ -3,7 +3,7 @@
 Use Node.js 24 and git flow. Releases are published from `coding-koala-io/lda-graph`.
 
 1. Run `git flow release start X.Y.Z` from `develop`.
-2. Bump package.json and package-lock.json versions, date the CHANGELOG release entry, and set LICENSE.md's Licensed Work version and Change Date (four years after release).
+2. Bump package.json and package-lock.json versions and date the CHANGELOG release entry. LICENSE.md is the standard Apache License 2.0 text with no version or date in it, so it is not changed for a release.
 3. Run `npm test`, then `npm run release:build`. Unpack the ZIP into an empty folder and start `node src/server.js` with `PORT=0`; verify /health reports graph and the release version. Review dist/manifest.json and SHA256SUMS.
 4. Run `git flow release finish X.Y.Z`; ensure the tag is exactly `v` plus the package.json version.
 5. Run `git push origin main develop --tags`. The Windows release workflow tests, packages and publishes the ZIP, SHA256SUMS and manifest with the matching CHANGELOG section.

@@ -1,4 +1,4 @@
-> **Development and research use only. Never use in production.**
+> **Development and research use only. Not designed or tested for production use.**
 > LDA Local Graph runs local stand-ins for Optimizely cloud services on a single
 > developer machine. It is not a replacement for any Optimizely service: its
 > behaviour, limits and performance differ, so always test against the real services

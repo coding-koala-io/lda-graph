@@ -16,7 +16,7 @@ const read = path => readFileSync(new URL(path, repo), 'utf8');
 
 test('Graph module identity, package and lock metadata use the v1 product', () => {
   const pkg = JSON.parse(read('package.json')); const lock = JSON.parse(read('package-lock.json'));
-  assert.deepEqual(product, {key: 'graph', name: 'LDA Local Graph', suite: 'Local Developer Accelerator for Optimizely', publisher: 'Coding Koalas Pty Ltd', version: pkg.version, dataVersion: 1, compatibleWith: 'Optimizely Graph'});
+  assert.deepEqual(product, {key: 'graph', name: 'LDA Local Graph', suite: 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13', publisher: 'Coding Koalas Pty Ltd', version: pkg.version, dataVersion: 1, compatibleWith: 'Optimizely Graph'});
   assert.equal(pkg.name, 'lda-graph'); assert.match(pkg.version, /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/); assert.equal(pkg.private, true);
   assert.equal(pkg.license, 'Apache-2.0'); assert.equal(pkg.author, product.publisher);
   assert.equal(pkg.repository, 'github:coding-koala-io/lda-graph'); assert.equal(pkg.homepage, 'https://github.com/coding-koala-io/lda-graph#readme');
@@ -29,7 +29,7 @@ function chrome(html) {
   assert.match(html, /<title>[^<]*· LDA Local Graph<\/title>/);
   assert.ok(html.includes('LDA Local Graph · Tenants'));
   assert.ok(html.includes('Development use only — not for production.'));
-  assert.ok(html.includes('Local Developer Accelerator for Optimizely · by Coding Koala'));
+  assert.ok(html.includes('Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 · by Coding Koala'));
   assert.ok(html.includes(`LDA Local Graph ${product.version} · Development use only, not for production`));
   for (const text of ['Not affiliated with or endorsed by Optimizely', 'Optimizely® is a trademark of Optimizely North America Inc.', 'No warranty']) assert.ok(html.includes(text));
   for (const path of ['/about', '/about/privacy', '/about/licence', '/about/legal']) assert.ok(html.includes(`href="${path}"`));
@@ -150,9 +150,9 @@ test('public legal documents, README installation and release guidance use final
   for (const text of ['WinSW', 'cdn.jsdelivr.net', 'LDA CLI', 'privacy@codingkoala.io']) assert.ok(privacy.includes(text));
   assert.match(privacy, /Last updated: \d{4}-\d{2}-\d{2}\./);
   assert.doesNotMatch(privacy, /Ollama|Anthropic|visitor IDs|LLM API key/);
-  const readme = read('README.md'); assert.ok(readme.startsWith('> **Development and research use only. Never use in production.**'));
+  const readme = read('README.md'); assert.ok(readme.startsWith('> **Development and research use only. Not designed or tested for production use.**'));
   for (const text of ['# LDA Local Graph', '## 2-minute quick start', 'releases/latest/download/install.ps1', 'lda install graph', '## Why developers use it', '## Getting started from source', 'Compatible with Optimizely CMS 13', 'not for production use', 'Apache License 2.0']) assert.ok(readme.toLowerCase().includes(text.toLowerCase()), text);
-  for (const text of ['git flow release start X.Y.Z', 'npm test', 'git flow release finish X.Y.Z', 'git push origin main develop --tags', 'four years']) assert.ok(read('docs/RELEASING.md').includes(text));
+  for (const text of ['git flow release start X.Y.Z', 'npm test', 'git flow release finish X.Y.Z', 'git push origin main develop --tags', 'not changed for a release']) assert.ok(read('docs/RELEASING.md').includes(text));
   assert.doesNotMatch(readme, /\.tgz|Change Date|Business Source License/);
   const heading = read('CHANGELOG.md').split(/\r?\n/).find(line => line.startsWith(`## [${pkg.version}] - `));
   assert.ok(heading && /^## \[[^\]]+\] - (unreleased|\d{4}-\d{2}-\d{2})$/.test(heading), `CHANGELOG has a section for ${pkg.version} that is unreleased or dated`);

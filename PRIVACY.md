@@ -2,7 +2,7 @@
 
 Published by Coding Koalas Pty Ltd (ACN 668 775 433). Last updated: 2026-10-16.
 
-LDA Local Graph ("the tool") is a development-only local stand-in compatible with Optimizely Graph for CMS 13, part of Local Developer Accelerator for Optimizely by Coding Koala.
+LDA Local Graph ("the tool") is a development-only local stand-in compatible with Optimizely Graph for CMS 13, part of Local Developer Accelerator (LDA), compatible with Optimizely CMS 13, by Coding Koala. Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 
 ## Summary
 - The tool runs on your own computer.
