@@ -2,6 +2,11 @@
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.2.3] - 2026-11-05
+
+### Changed
+- README: the 43-second demo (animated GIF near the top) and a link to the video on YouTube.
+
 ## [1.2.2] - 2026-11-04
 
 ### Changed
