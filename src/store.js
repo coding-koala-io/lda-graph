@@ -46,7 +46,8 @@ function restoreSlot(value) {
 
 /** Single-process store with atomic, coalesced asynchronous persistence. */
 export class Store {
-  constructor({dataDir = './data', logger = console, tenant = 'default', previousSlotHours = process.env.PREVIOUS_SLOT_HOURS ?? 24} = {}) {
+  constructor({dataDir = './data', logger = console, tenant = 'default', previousSlotHours = process.env.PREVIOUS_SLOT_HOURS ?? 24, now = Date.now, createJournalId = randomUUID} = {}) {
+    this.now = now; this.createJournalId = createJournalId;
     this.dataDir = dataDir;
     this.logger = logger;
     this.tenant = tenant;
@@ -208,7 +209,7 @@ export class Store {
     const old = own(target.types, source) ? target.types[source] : {};
     const next = merge ? {...old, ...model, contentTypes: {...old.contentTypes, ...model.contentTypes}, propertyTypes: {...old.propertyTypes, ...model.propertyTypes}} : structuredClone(model);
     Object.defineProperty(target.types, source, {value: next, enumerable: true, writable: true, configurable: true});
-    this.state.metadata[`${slot}TypesUpdated`] = new Date().toISOString();
+    this.state.metadata[`${slot}TypesUpdated`] = new Date(this.now()).toISOString();
     this.state.metadata[`${slot}TypesMethod`] = merge ? 'POST' : 'PUT';
     this.changed();
   }
@@ -281,8 +282,8 @@ export class Store {
         items.push({index: {Status: 400, _index: 'default', _id: action?._id ?? '', Result: 'not_found', Error: {Type: 'parse_error', Reason: error.message}}});
       }
     }
-    const id = randomUUID();
-    this.state.journals[id] = compactJournal({ts: new Date().toISOString(), took: Math.round(performance.now() - started), errors: items.some(i => i.index.Status === 400), status: 'done', items});
+    const id = this.createJournalId();
+    this.state.journals[id] = compactJournal({ts: new Date(this.now()).toISOString(), took: Math.round(performance.now() - started), errors: items.some(i => i.index.Status === 400), status: 'done', items});
     this.trim('journals', 1000);
     this.changed();
     return id;
@@ -293,7 +294,7 @@ export class Store {
   }
   addJob(job, jobHeader) {
     if (typeof job?.id !== 'string' || !job.id || !Array.isArray(job.details) || job.details.some(detail => typeof detail?.id !== 'string' || !detail.id)) throw new Error('Job requires a string id and details containing string journal ids');
-    Object.defineProperty(this.state.jobs, job.id, {value: {...structuredClone(job), ts: new Date().toISOString(), ogJobId: jobHeader ?? job.id}, enumerable: true, writable: true, configurable: true});
+    Object.defineProperty(this.state.jobs, job.id, {value: {...structuredClone(job), ts: new Date(this.now()).toISOString(), ogJobId: jobHeader ?? job.id}, enumerable: true, writable: true, configurable: true});
     this.trim('jobs', 200); this.changed();
   }
   jobStatus(id) {

@@ -3,9 +3,9 @@ import {parse, validate, execute, getOperationAST, getVariableValues} from 'grap
 import {collectFields} from 'graphql/execution/collectFields.js';
 import {parseJson} from './http-utils.js';
 
-export async function handleGraphql({method, text, url, crossOrigin, schemas, querySlot, queryHeaders, auth, send, diagnostic}) {
+export async function handleGraphql({method, text, url, crossOrigin, schemas, querySlot, queryHeaders, auth, send, diagnostic, createCorrelationId = () => randomUUID()}) {
   const body = method === 'POST' ? parseJson(text) : {query: url.searchParams.get('query'), variables: url.searchParams.get('variables'), operationName: url.searchParams.get('operationName')};
-  const correlationId = randomUUID();
+  const correlationId = createCorrelationId(body);
   const reply = result => send(200, {...result, extensions: {...result.extensions, correlationId}});
   if (!body || typeof body.query !== 'string') return reply({errors: [{message: 'A GraphQL query string is required'}]});
   let variables;

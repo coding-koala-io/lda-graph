@@ -12,7 +12,8 @@
     "service:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/service.ps1 status",
     "service:restart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/service.ps1 restart",
     "service:logs": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/service.ps1 logs",
-    "release:build": "node scripts/build-release.mjs"
+    "release:build": "node scripts/build-release.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "keywords": [],
   "author": "Coding Koalas Pty Ltd (https://codingkoala.io)",

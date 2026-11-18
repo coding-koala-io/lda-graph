@@ -187,7 +187,7 @@ export class TenantRegistry {
       const folder = this.folder(this.config.dataDir, id);
       const size = folder === ':memory:' ? 0 : ['store.ndjson', 'store.json'].reduce((sum, file) => sum + (existsSync(join(folder, file)) ? statSync(join(folder, file)).size : 0), 0);
       this.logger.log(`[${id}] loading store (${(size / 1048576).toFixed(1)} MB)…`);
-      runtime.store = this.legacy && id === 'default' && this.config.store ? this.config.store : new Store({dataDir: folder, logger: this.logger, tenant: id, previousSlotHours: this.config.previousSlotHours});
+      runtime.store = this.legacy && id === 'default' && this.config.store ? this.config.store : new Store({dataDir: folder, logger: this.logger, tenant: id, previousSlotHours: this.config.previousSlotHours, now: this.config.now, createJournalId: this.config.createJournalId});
       runtime.rebuild = () => {
         const conflicts = new Set();
         for (const slot of ['live', 'new']) {

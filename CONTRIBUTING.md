@@ -32,3 +32,11 @@ Maintainers may remove any contribution that breaks these rules.
 Use Node.js 24 or later. Install dependencies with `npm ci`, then run `npm test`; all tests must pass before a pull request. Use synthetic data only.
 
 Branch from `develop` with `feature/<name>` and open pull requests back to `develop`. Use `release/X.Y.Z` for release preparation and `hotfix/<name>` for urgent fixes from `main`; merge releases and hotfixes into both `main` and `develop`. See [docs/RELEASING.md](docs/RELEASING.md). Last updated: 2026-10-16.
+
+## Screenshots
+
+Run `npm run screenshots` with an installed Chrome, Edge or Chromium browser (or set `LDA_SCREENSHOT_BROWSER` to its executable). The script uses the fixed loopback address `127.0.0.1:18082` and fails if the port is in use. It starts its own Local Graph server with disposable data, logs, and a fresh browser profile under the OS temporary directory. It creates the demo tenant configuration at `.test-runtime/screenshots-demo/tenants.json` and fails if the configuration directory already exists. The script cleans up the resources it creates on success, failure, or a handled interruption.
+
+Full-page images at 720 px and 360 px go to `docs/media/screens/<page>-<width>.png` after all captures succeed, with a stable `MANIFEST.md` and a before/after file list on stdout. Screens cover the dashboard, tenant settings and details, content explorer, standalone GraphiQL, and legal pages. GraphiQL uses its usual CDN assets, so those must be reachable. The tenant screen uses its schema search to show `DemoPage`. Images show the checkout's version and, where displayed, the actual demo tenant configuration path. Captures use the live layout.
+
+Every release must regenerate and independently review the images as described in [docs/RELEASING.md](docs/RELEASING.md). Tests and `release:build` intentionally work without a browser. README demo GIFs require a CMS and remain separate.

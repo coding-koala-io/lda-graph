@@ -44,7 +44,7 @@ export function createServer(options = {}) {
       const headers = {...request.headers}; if (headers.authorization) headers.authorization = headers.authorization.split(/\s+/)[0];
       const byteLength = body => Buffer.byteLength(typeof body === 'string' ? body : JSON.stringify(body) ?? '');
       const safeUrl = redactUrl(request.url);
-      const entry = {ts: new Date().toISOString(), method: request.method, url: safeUrl, status: response.statusCode, ms: Math.round(performance.now() - started), headers,
+      const entry = {ts: new Date((config.now ?? Date.now)()).toISOString(), method: request.method, url: safeUrl, status: response.statusCode, ms: Math.round(performance.now() - started), headers,
         reqBody: config.logBodies ? truncate(reqBody) : null, resBody: config.logBodies ? truncate(resBody) : null,
         reqTruncated: config.logBodies && byteLength(reqBody) > 65536, resTruncated: config.logBodies && byteLength(resBody) > 65536,
         ...Object.fromEntries(['root', 'queryName', 'ops', 'journal'].filter(key => diagnostic[key] != null).map(key => [key, diagnostic[key]]))};
@@ -180,7 +180,7 @@ export function createServer(options = {}) {
       }
       if (queryRoute && ['POST', 'GET'].includes(method)) {
         diagnostic.queryName = request.headers['x-query-name'];
-        return await handleGraphql({method, text, url, crossOrigin, schemas: runtime.schemas, querySlot: ['cg-query-new', 'cg-use-new'].some(name => request.headers[name]?.toLowerCase() === 'true') ? 'new' : 'live', queryHeaders, auth, send, diagnostic});
+        return await handleGraphql({method, text, url, crossOrigin, schemas: runtime.schemas, querySlot: ['cg-query-new', 'cg-use-new'].some(name => request.headers[name]?.toLowerCase() === 'true') ? 'new' : 'live', queryHeaders, auth, send, diagnostic, createCorrelationId: config.createCorrelationId});
       }
       if (runtime && await handleProtocol({path, method, url, text, bytes, headers: request.headers, store: runtime.store, rebuild: runtime.rebuild, slot: request.headers['cg-deploy-new'] === 'true' ? 'new' : 'live', source: url.searchParams.get('id') || 'default', send, diagnostic})) return;
       return send(404, {message: 'Not found'});
