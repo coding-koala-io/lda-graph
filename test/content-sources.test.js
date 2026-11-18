@@ -187,8 +187,8 @@ test('dashboard sources count type membership once and explorer includes empty t
   const html = (await gw.request('/tenants/default', {auth: null})).data;
   assert.match(html, /<h3>Sources<\/h3>/);
   const table = /<div id="source-table">([\s\S]*?)<\/table>/.exec(html)[1];
-  assert.match(table, /<td>cmp<\/td><td><span class="number">3<\/span><\/td><td><span class="number">2<\/span>/);
+  assert.match(table, /<td data-label="Source ID">cmp<\/td><td data-label="Content types"><span class="number">3<\/span><\/td><td data-label="Docs"><span class="number">2<\/span>/);
   const explorer = (await gw.request('/explorer?tenant=default', {auth: null})).data;
   assert.match(explorer, /cmp_EmptyAsset/);
-  assert.match(explorer, />cmp_PublicImageAsset<\/a><\/td><td><span class="number">2<\/span>/);
+  assert.match(explorer, />cmp_PublicImageAsset<\/a><\/td><td data-label="Count"><span class="number">2<\/span>/);
 });
