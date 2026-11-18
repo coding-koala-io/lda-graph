@@ -214,7 +214,10 @@ test('known keys serve same tenant GraphiQL config; live/new toggle switches sam
     const suffix = slot === 'new' ? '&slot=new' : '';
     const result = await gw.request(`/app/graphiql?auth=${tenant.singleKey}${suffix}`, {auth: null});
     assert.equal(result.status, 200); assert.match(result.headers.get('content-type'), /^text\/html/);
-    assert.equal(result.data, (await gw.request(`/graphiql?tenant=${tenant.id}${suffix}`, {auth: null})).data);
+    const standalone = (await gw.request(`/graphiql?tenant=${tenant.id}${suffix}`, {auth: null})).data;
+    assert.equal(/<script>([\s\S]*?)<\/script>/.exec(result.data)[1], /<script>([\s\S]*?)<\/script>/.exec(standalone)[1]);
+    assert.doesNotMatch(result.data, /Coding Koala|Optimizely/);
+    assert.match(standalone, /Built by <a href="https:\/\/codingkoala\.io"/);
     assert.match(result.data, /Query:/); assert.match(result.data, /<select id="query-slot">/); assert.match(result.data, />new slot<\/option>/);
     assert.ok(!result.data.includes('cg-use-new'));
     assert.match(result.data, new RegExp(`<option value="${slot}" selected>`));

@@ -18,37 +18,76 @@ test('Graph module identity, package and lock metadata use the v1 product', () =
   const pkg = JSON.parse(read('package.json')); const lock = JSON.parse(read('package-lock.json'));
   assert.deepEqual(product, {key: 'graph', name: 'LDA Local Graph', suite: 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13', publisher: 'Coding Koalas Pty Ltd', version: pkg.version, dataVersion: 1, compatibleWith: 'Optimizely Graph'});
   assert.equal(pkg.name, 'lda-graph'); assert.match(pkg.version, /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/); assert.equal(pkg.private, true);
-  assert.equal(pkg.license, 'Apache-2.0'); assert.equal(pkg.author, product.publisher);
+  assert.equal(pkg.license, 'Apache-2.0'); assert.equal(pkg.author, `${product.publisher} (https://codingkoala.io)`);
   assert.equal(pkg.repository, 'github:coding-koala-io/lda-graph'); assert.equal(pkg.homepage, 'https://github.com/coding-koala-io/lda-graph#readme');
   assert.equal(pkg.engines.node, '>=24');
-  assert.equal(pkg.description, `${product.name} — a local Graph service for development, compatible with Optimizely CMS 13. Part of Local Developer Accelerator by Coding Koala. Development use only.`);
+  assert.equal(pkg.description, `${product.name}: a local Graph service for development, compatible with Optimizely CMS 13. Part of Local Developer Accelerator. Free and open source (Apache 2.0). Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.`);
+  assert.equal(pkg.bugs, 'https://github.com/coding-koala-io/lda-graph/issues');
   assert.equal(lock.name, pkg.name); assert.equal(lock.packages[''].name, pkg.name); assert.equal(lock.packages[''].license, pkg.license);
 });
 
-function chrome(html) {
+function chrome(html, {embedded = false} = {}) {
   assert.match(html, /<title>[^<]*· LDA Local Graph<\/title>/);
   assert.ok(html.includes('LDA Local Graph · Tenants'));
   assert.ok(html.includes('Development use only — not for production.'));
-  assert.ok(html.includes('Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 · by Coding Koala'));
-  assert.ok(html.includes(`LDA Local Graph ${product.version} · Development use only, not for production`));
-  for (const text of ['Not affiliated with or endorsed by Optimizely', 'Optimizely® is a trademark of Optimizely North America Inc.', 'No warranty']) assert.ok(html.includes(text));
-  for (const path of ['/about', '/about/privacy', '/about/licence', '/about/legal']) assert.ok(html.includes(`href="${path}"`));
+  const banner = /<aside class="development-banner"[^>]*>(.*?)<\/aside>/s.exec(html)[1];
+  const footer = /<footer class="product-footer">(.*?)<\/footer>/s.exec(html)[1];
+  assert.ok(banner.includes(embedded ? 'Local Developer Accelerator (LDA)' : product.suite));
+  assert.ok(!banner.includes('Coding Koala'));
+  assert.ok(footer.includes(`LDA Local Graph ${product.version} · ${embedded ? 'Development use only' : 'Apache 2.0'}`));
+  assert.ok(footer.includes('href="/about"'));
+  if (embedded) {
+    assert.doesNotMatch(html, /Coding Koala|Optimizely/);
+    for (const path of ['/about/privacy', '/about/licence', '/about/legal']) assert.ok(!footer.includes(`href="${path}"`));
+  } else {
+    assert.equal((html.match(/Built by\b/g) ?? []).length, 1, 'one builder line per screen');
+    assert.equal((html.match(/Not affiliated with or endorsed by Optimizely\./g) ?? []).length, 1, 'one disclaimer per screen');
+    assert.doesNotMatch(footer, /Optimizely®|No warranty/);
+    for (const path of ['/about/privacy', '/about/licence']) assert.ok(footer.includes(`href="${path}"`));
+    assert.ok(!footer.includes('href="/about/legal"'));
+  }
 }
 
 test('every admin shell has product titles, banner and footer, including GraphiQL and confirmation', async t => {
   const gw = await tenants(t); const base = `/tenants/${A.id}`;
   for (const path of ['/', base, base + '/edit', '/explorer', `/explorer?tenant=${A.id}`, '/graphiql', `/graphiql?tenant=${A.id}`, `/app/graphiql?auth=${A.singleKey}`, '/app/graphiql?auth=missing', '/about', '/about/privacy', '/about/licence', '/about/legal']) {
     const response = await gw.request(path, {auth: null});
-    assert.equal(response.status, path.endsWith('auth=missing') ? 404 : 200, path); chrome(response.data);
+    const embedded = path.startsWith('/app/graphiql');
+    assert.equal(response.status, path.endsWith('auth=missing') ? 404 : 200, path); chrome(response.data, {embedded});
     // GraphiQL can be shown inside the CMS frame, so its product links open in a new tab; other pages do not.
-    const framed = response.data.includes('<title>GraphiQL · LDA Local Graph</title>');
-    assert.equal(framed, ['/graphiql?tenant=', '/app/graphiql?auth=' + A.singleKey].some(prefix => path.startsWith(prefix)), path);
-    for (const href of ['/', '/about', '/about/privacy', '/about/licence', '/about/legal']) assert.equal(response.data.includes(`href="${href}" target="_blank" rel="noopener"`), framed, `${path} ${href}`);
+    for (const href of ['/', '/about']) assert.equal(response.data.includes(`href="${href}" target="_blank" rel="noopener noreferrer"`), embedded, `${path} ${href}`);
   }
   chrome((await gw.request('/content/v2', {auth: null, headers: {Accept: 'text/html'}})).data);
   const detail = (await gw.request(base, {auth: null})).data;
   const confirmation = await postForm(gw, base + '/confirm', {action: 'content', csrf: csrf(detail)});
   assert.equal(confirmation.status, 200); chrome(confirmation.data);
+});
+
+test('GraphiQL distinguishes navigation from CMS frames and keeps query and slot selection', async t => {
+  const gw = await tenants(t);
+  for (const [path, destination, embedded] of [
+    [`/graphiql?tenant=${A.id}`, 'document', false],
+    [`/graphiql?tenant=${A.id}`, 'iframe', true],
+    [`/app/graphiql?auth=${A.singleKey}`, 'document', false],
+    [`/app/graphiql?auth=${A.singleKey}`, 'iframe', true],
+    [`/app/graphiql?auth=${A.singleKey}`, 'frame', true],
+    [`/content/v2?tenant=${A.id}`, 'document', false],
+    [`/content/v2?tenant=${A.id}`, 'iframe', true],
+  ]) {
+    const query = '{ _Content { total } }';
+    const htmlQueryEndpoint = path.startsWith('/content/v2');
+    const response = await gw.request(path + '&' + new URLSearchParams({slot: 'new', ...(!htmlQueryEndpoint ? {query} : {})}), {auth: null, headers: {Accept: 'text/html', 'Sec-Fetch-Dest': destination}});
+    assert.equal(response.status, 200, `${path} ${destination}`); chrome(response.data, {embedded});
+    assert.equal(response.headers.get('vary'), 'Sec-Fetch-Dest');
+    assert.ok(response.data.includes(`const linkQuery=${htmlQueryEndpoint ? 'undefined' : JSON.stringify(query)}`));
+    assert.ok(response.data.includes('"cg-query-new":"true"'));
+    if (!embedded) assert.ok(response.data.includes('Built by <a href="https://codingkoala.io" target="_blank" rel="noopener noreferrer">Coding Koala</a>'));
+  }
+  chrome((await gw.request('/graphiql', {auth: null, headers: {'Sec-Fetch-Dest': 'iframe'}})).data, {embedded: true});
+  for (const [destination, embedded] of [['document', false], ['iframe', true]]) {
+    const response = await gw.request('/app/graphiql?auth=missing', {auth: null, headers: {'Sec-Fetch-Dest': destination}});
+    assert.equal(response.status, 404); chrome(response.data, {embedded});
+  }
 });
 
 test('about pages render the exact escaped root files with dashboard security rules', async t => {
@@ -60,7 +99,13 @@ test('about pages render the exact escaped root files with dashboard security ru
     assert.equal(response.headers.get('x-frame-options'), 'SAMEORIGIN');
     assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'self'/);
     if (file) assert.ok(response.data.includes(`<pre>${escapeHtml(read(file))}</pre>`));
-    else for (const text of [product.name, product.suite, product.version, 'dataVersion: 1', product.publisher, 'Apache License 2.0 — development tool, not for production use']) assert.ok(response.data.includes(text));
+    else {
+      for (const text of [product.name, product.suite, product.version, '<dt>dataVersion</dt><dd>1</dd>', `<dt>Copyright</dt><dd>2026 ${product.publisher} (ACN 668 775 433).</dd>`, '<dt>Licence</dt><dd>Apache License 2.0, development tool, not for production use</dd>', 'Provided as is, without warranty.']) assert.ok(response.data.includes(text), text);
+      assert.ok(response.data.includes('<dt>Built by</dt><dd><a href="https://codingkoala.io" target="_blank" rel="noopener noreferrer">Coding Koala</a></dd>'));
+      assert.ok(response.data.includes('<dt>Source</dt><dd><a href="https://github.com/coding-koala-io/lda-graph" target="_blank" rel="noopener noreferrer">GitHub</a></dd>'));
+      const footer = /<footer class="product-footer">(.*?)<\/footer>/s.exec(response.data)[1];
+      assert.doesNotMatch(footer, /Coding Koala|Optimizely/);
+    }
     assert.equal((await gw.request(path, {auth: admin, headers: {Origin: 'https://evil.example'}})).status, 403);
   }
 });
@@ -127,7 +172,7 @@ test('startup identifies the product and warns only on non-loopback binds', asyn
     const messages = []; const warnings = [];
     const server = await startServer({port: 0, host, tenantsFile: join(root, 'absent.json'), dataDir: ':memory:', logDir: ':memory:', adminUser: 'manager', adminPassword: 'password', logger: {...quiet, log: value => messages.push(value), warn: value => warnings.push(value)}});
     try {
-      assert.ok(messages.includes(`${product.name} ${product.version} (${product.suite}) listening at http://${host}:${server.address().port} — development use only`));
+      assert.ok(messages.includes(`${product.name} ${product.version} listening at http://${host}:${server.address().port} (development use only)`));
       assert.equal(warnings.length, host === '127.0.0.1' ? 0 : 1);
       if (warnings.length) assert.match(warnings[0], /development only\.\nAnyone on the network can reach.*\nNever point a shared or production site at it\./);
     } finally { await new Promise(resolve => server.close(resolve)); }
@@ -145,7 +190,7 @@ test('public legal documents, README installation and release guidance use final
   const pkg = JSON.parse(read('package.json')), license = read('LICENSE.md');
   for (const text of ['Apache License', 'Version 2.0, January 2004', 'TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION', 'END OF TERMS AND CONDITIONS']) assert.ok(license.includes(text), text);
   assert.doesNotMatch(license, /Business Source License|Change Date/);
-  for (const text of ['Local Developer Accelerator (LDA) Local Graph', 'Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433)', 'compatible with Optimizely CMS 13', 'not affiliated with or endorsed by Optimizely']) assert.ok(read('NOTICE').includes(text), text);
+  for (const text of ['Local Developer Accelerator (LDA) Local Graph', 'Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433)', 'compatible with Optimizely CMS 13', 'Not affiliated with or endorsed by Optimizely.']) assert.ok(read('NOTICE').includes(text), text);
   const privacy = read('PRIVACY.md');
   for (const text of ['WinSW', 'cdn.jsdelivr.net', 'LDA CLI', 'privacy@codingkoala.io']) assert.ok(privacy.includes(text));
   assert.match(privacy, /Last updated: \d{4}-\d{2}-\d{2}\./);

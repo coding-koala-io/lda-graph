@@ -125,19 +125,24 @@ export function createServer(options = {}) {
       }
       if (method === 'GET' && path === '/app/graphiql') {
         embeddable = true;
+        const destination = request.headers['sec-fetch-dest'];
+        const embedded = destination !== 'document';
+        response.setHeader('Vary', 'Sec-Fetch-Dest');
         const key = url.searchParams.get('auth');
         const tenant = key && registry.entries.find(entry => constantEqual(entry.singleKey, key));
-        if (!tenant) return send(404, page('Unknown Graph key', '<p>Unknown Graph key</p>'), 'text/html; charset=utf-8');
+        if (!tenant) return send(404, page('Unknown Graph key', '<p>Unknown Graph key</p>', '', {embedded}), 'text/html; charset=utf-8');
         runtime = registry.get(tenant.id, false);
-        return send(200, graphiqlHtml(tenant.singleKey, url.searchParams.get('query') ?? undefined, url.searchParams.get('slot') === 'new'), 'text/html; charset=utf-8');
+        return send(200, graphiqlHtml(tenant.singleKey, url.searchParams.get('query') ?? undefined, url.searchParams.get('slot') === 'new', {embedded}), 'text/html; charset=utf-8');
       }
       if (method === 'GET' && (path === '/graphiql' || htmlRequest)) {
+        const embedded = ['iframe', 'frame'].includes(request.headers['sec-fetch-dest']);
+        response.setHeader('Vary', 'Sec-Fetch-Dest');
         let id = url.searchParams.get('tenant');
-        if (!id && registry.entries.length !== 1) return send(200, pickerHtml(registry), 'text/html; charset=utf-8');
+        if (!id && registry.entries.length !== 1) return send(200, pickerHtml(registry, {embedded}), 'text/html; charset=utf-8');
         id ??= registry.entries[0].id; const tenant = registry.find(id);
         if (!tenant) return send(404, {message: 'Tenant not found'});
         runtime = registry.get(id, false);
-        return send(200, graphiqlHtml(tenant.singleKey, url.searchParams.get('query') ?? undefined, url.searchParams.get('slot') === 'new'), 'text/html; charset=utf-8');
+        return send(200, graphiqlHtml(tenant.singleKey, url.searchParams.get('query') ?? undefined, url.searchParams.get('slot') === 'new', {embedded}), 'text/html; charset=utf-8');
       }
       if (method === 'GET' && path === '/explorer') {
         const id = url.searchParams.get('tenant');
@@ -201,7 +206,7 @@ export async function startServer(options = {}) {
   (options.logger ?? console).log(`JavaScript heap limit: ${(processMemory().heapLimit / (1024 * 1024)).toFixed(0)} MiB`);
   try { await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(server.config.port, server.config.host, resolveListen); }); }
   catch (error) { await server.tenants.close(); throw error; }
-  (options.logger ?? console).log(`${product.name} ${product.version} (${product.suite}) listening at http://${server.config.host}:${server.address().port} — development use only`); return server;
+  (options.logger ?? console).log(`${product.name} ${product.version} listening at http://${server.config.host}:${server.address().port} (development use only)`); return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   let server;

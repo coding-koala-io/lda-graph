@@ -1,6 +1,8 @@
 # How this software was built (clean-room record)
 
-LDA Local Graph is published by Coding Koalas Pty Ltd (ACN 668 775 433).
+Built by Coding Koala. Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433).
+
+Not affiliated with or endorsed by Optimizely.
 
 This document records how the compatible behaviour in this repository was worked out and written, so anyone can see that it was created independently.
 

@@ -3,9 +3,11 @@
 Last updated: 2026-10-16.
 
 ## Who publishes this software
-LDA Local Graph is published by Coding Koalas Pty Ltd (ACN 668 775 433), Sydney, New South Wales, Australia ("we", "us"). Contact: legal@codingkoala.io.
+Built by Coding Koala, Sydney, New South Wales, Australia ("we", "us"). Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). Contact: legal@codingkoala.io.
 
 ## Not affiliated with Optimizely
+Not affiliated with or endorsed by Optimizely.
+
 This project is independent. It is **not** made, sponsored, endorsed, reviewed, certified or supported by Optimizely or any company in the Optimizely group.
 Optimizely® is a trademark of Optimizely North America Inc. Optimizely Graph and related names are trademarks of their respective owners. We use them only to describe what this software is compatible with. Their use does not imply any relationship or approval.
 This software contains no Optimizely source code, binaries, user interface, logos or documentation.

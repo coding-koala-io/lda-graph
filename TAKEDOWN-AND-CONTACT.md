@@ -2,12 +2,14 @@
 
 LDA Local Graph · Last updated: 2026-10-16.
 
+Not affiliated with or endorsed by Optimizely.
+
 We respect the intellectual property of Optimizely and everyone else. If you believe this project infringes your rights, breaches an agreement or is misleading, please tell us. We will act in good faith and promptly.
 
 ## Contact
 - Email: legal@codingkoala.io
-- Post: Coding Koalas Pty Ltd, Sydney NSW, Australia
-- Publisher: Coding Koalas Pty Ltd (ACN 668 775 433)
+- Post: Coding Koala, Sydney NSW, Australia
+- Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433).
 - Please do not use public GitHub issues for legal notices.
 
 ## What to include

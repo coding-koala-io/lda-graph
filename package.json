@@ -2,7 +2,7 @@
   "name": "lda-graph",
   "private": true,
   "version": "1.2.3",
-  "description": "LDA Local Graph \u2014 a local Graph service for development, compatible with Optimizely CMS 13. Part of Local Developer Accelerator by Coding Koala. Development use only.",
+  "description": "LDA Local Graph: a local Graph service for development, compatible with Optimizely CMS 13. Part of Local Developer Accelerator. Free and open source (Apache 2.0). Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -15,7 +15,7 @@
     "release:build": "node scripts/build-release.mjs"
   },
   "keywords": [],
-  "author": "Coding Koalas Pty Ltd",
+  "author": "Coding Koalas Pty Ltd (https://codingkoala.io)",
   "license": "Apache-2.0",
   "repository": "github:coding-koala-io/lda-graph",
   "type": "module",
@@ -30,5 +30,6 @@
   "devDependencies": {
     "jszip": "3.10.1"
   },
-  "homepage": "https://github.com/coding-koala-io/lda-graph#readme"
+  "homepage": "https://github.com/coding-koala-io/lda-graph#readme",
+  "bugs": "https://github.com/coding-koala-io/lda-graph/issues"
 }

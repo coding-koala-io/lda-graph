@@ -35,7 +35,7 @@ export function generateServiceXml({nodePath, repoRoot, runtimeRoot = DEFAULT_RU
 <service>
   <id>${SERVICE_ID}</id>
   <name>Local Developer Accelerator — Graph (development only)</name>
-  <description>LDA Local Graph — local development stand-in compatible with Optimizely Graph. Not for production. By Coding Koala.</description>
+  <description>LDA Local Graph: local development stand-in compatible with Optimizely Graph. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.</description>
   <executable>${xml(nodePath)}</executable>
   <arguments>${xml(`--max-old-space-size=${Number(maxMemoryMB)} "${server}"`)}</arguments>
   <workingdirectory>${xml(repoRoot)}</workingdirectory>

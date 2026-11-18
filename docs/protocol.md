@@ -1,5 +1,7 @@
 # HTTP protocol
 
+Not affiliated with or endorsed by Optimizely.
+
 This server receives type models and documents from CMS 13 clients and serves them through GraphQL. Credentials select a tenant; each tenant has separate types, documents, slots, journals, jobs, webhook registrations and request history. Paths below are relative to the gateway address.
 
 ## Client configuration and authentication

@@ -14,7 +14,7 @@ import {MODEL, document, index} from './fixtures.js';
 
 const ADMIN = 'Basic ' + Buffer.from('manager:password').toString('base64');
 const formValues = html => Object.fromEntries([...html.matchAll(/<input[^>]*name="(id|name|appKey|singleKey|secret)"[^>]*value="([^"]*)"/g)].map(match => [match[1], match[2]]));
-const noCors = result => { for (const [key] of result.headers) assert.ok(!key.startsWith('access-control-'), key); assert.equal(result.headers.get('vary'), null); };
+const noCors = (result, vary = null) => { for (const [key] of result.headers) assert.ok(!key.startsWith('access-control-'), key); assert.equal(result.headers.get('vary'), vary); };
 function networkRequest(gw, path, {host = 'graph.lan', origin, auth, method = 'GET', body} = {}) {
   return new Promise((resolveRequest, reject) => {
     const request = http.request(gw.base + path, {method, headers: {Host: host, ...(origin ? {Origin: origin} : {}), ...(auth ? {Authorization: auth} : {}), ...(body !== undefined ? {'Content-Type': 'application/x-www-form-urlencoded'} : {})}}, response => {
@@ -116,7 +116,7 @@ test('all dashboard and GraphiQL HTML is same-origin without CORS; GraphQL GET/P
   const base = '/tenants/' + A.id;
   const paths = ['/', base, base + '/edit', base + '/documents/doc', base + '/request/' + n, base + '/sync/job', base + '/journals/' + journal + '?view=html', '/graphiql', '/graphiql?tenant=' + A.id, '/content/v2'];
   for (const path of paths) {
-    const result = await gw.request(path, {auth: null, headers: {Accept: 'text/html'}}); assert.equal(result.status, 200, path); noCors(result);
+    const result = await gw.request(path, {auth: null, headers: {Accept: 'text/html'}}); assert.equal(result.status, 200, path); noCors(result, path.startsWith('/graphiql') || path === '/content/v2' ? 'Sec-Fetch-Dest' : null);
     const cross = await gw.request(path, {auth: null, headers: {Accept: 'text/html', Origin: 'https://evil.example'}}); assert.equal(cross.status, 403, path); noCors(cross);
     const preflight = await gw.request(path === '/content/v2' ? '/graphiql' : path, {method: 'OPTIONS', auth: null, headers: {Origin: 'https://evil.example'}}); assert.equal(preflight.status, 403); noCors(preflight);
   }

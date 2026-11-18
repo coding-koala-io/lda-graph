@@ -6,8 +6,7 @@
 > Provided "as is", without warranty of any kind. Its data folder holds copies of
 > your CMS content, including drafts; treat it as sensitive. No telemetry. See
 > PRIVACY.md and LEGAL-NOTICE.md.
-> LDA Local Graph is an independent project, not affiliated with, sponsored by or
-> endorsed by Optimizely. Optimizely® and the Optimizely product names are trademarks
+> Not affiliated with or endorsed by Optimizely. Optimizely® and the Optimizely product names are trademarks
 > or registered trademarks of Optimizely North America Inc. or its related entities.
 
 # LDA Local Graph
@@ -18,7 +17,9 @@
 
 Watch the 43-second demo: https://youtu.be/uIBKd3OSXro
 
-Part of **Local Developer Accelerator by Coding Koala**. Compatible with Optimizely CMS 13. Development use only, not for production. Not affiliated with or endorsed by Optimizely.
+Made for CMS 13 sites. Not tested with CMS 12.
+
+Part of Local Developer Accelerator (LDA) · Free and open source (Apache 2.0) · Built by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator) · No telemetry ([network calls](PRIVACY.md#network-connections))
 
 ## 2-minute quick start
 
@@ -26,6 +27,15 @@ Part of **Local Developer Accelerator by Coding Koala**. Compatible with Optimiz
 irm https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.ps1 | iex
 lda install graph
 ```
+
+Linux / macOS:
+
+```sh
+curl -fsSL https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.sh | sh
+lda run graph
+```
+
+Keep this terminal open while using Local Graph; Ctrl+C stops it.
 
 1. Open <http://localhost:8082/>, create a tenant and copy the `Optimizely:ContentGraph` settings it shows.
 2. Paste them into your CMS site's `appsettings.Development.json`, then start the CMS (start this server first).
@@ -49,9 +59,7 @@ Working on the code itself? See [Getting started from source](#getting-started-f
 
 Full list: [Limitations](#limitations).
 
-## Upgrading a site from CMS 12?
-
-Most CMS 12 sites need a .NET 10 move, package changes and, if they use Search & Navigation, a search rebuild. [RepoKoala](https://repokoala.com/?utm_source=github&utm_medium=readme&utm_campaign=lda-graph) gives a written readiness report with a fixed price per application, before you commit budget. Our senior developer reviews and tests every change.
+Moving a site from CMS 12? Coding Koala also offers a paid readiness review: [RepoKoala](https://repokoala.com).
 
 ## Getting started from source
 
@@ -187,7 +195,11 @@ If a root-level `DATA_DIR/store.ndjson` or `store.json` exists and `default` has
 
 ## Dashboard and debugging
 
-Every page shows a development-only banner and a footer with links to **About** (`/about`: product, version, data version, publisher and licence), **Privacy**, **Licence** and **Legal notice** (`/about/privacy`, `/about/licence`, `/about/legal`), which display PRIVACY.md, LICENSE.md and LEGAL-NOTICE.md from the installation folder. About pages follow the same access rules as the dashboard. In GraphiQL, which the CMS can show inside its own window, the header and footer links open in a new tab.
+Standalone pages show a development-only banner and a footer with the product name and version, Apache 2.0, **Built by Coding Koala**, **Development use only**, **Not affiliated with or endorsed by Optimizely.**, and links to **About**, **Privacy** and **Licence**. The builder line and disclaimer are omitted from the footer when already present in the page body, as on About. Internal header and footer links open in the same tab; the Coding Koala link opens in a new tab.
+
+CMS-embedded GraphiQL shows a development-only banner and a footer containing only the product name and version, **Development use only** and **About**. Its **Tenants** header link and **About** footer link open in a new tab.
+
+**About** (`/about`) shows product, version, suite, data version, compatibility, builder, source, licence and copyright details. **Legal notice** is reached from About at `/about/legal`. **Privacy**, **Licence** and **Legal notice** (`/about/privacy`, `/about/licence`, `/about/legal`) display PRIVACY.md, LICENSE.md and LEGAL-NOTICE.md from the installation folder. About pages follow the same access rules as the dashboard.
 
 `GET /` lists tenant names/IDs, keys (AppKey and SingleKey are click-to-reveal), Published/Draft/other document counts, content types, languages, last full sync, last request and disk size, with links to GraphiQL and the explorer. Open a tenant at `/tenants/{id}` for its exact appsettings snippet, overview, last 50 sync jobs with indexed/deleted/failed counts and journal items, searchable documents (50 per page), versions of a key, last 200 requests and full request/response details, and searchable SDL. Overview counts refresh every five seconds. Content and all user values are HTML-escaped.
 
@@ -407,12 +419,23 @@ Automatic recycling requires Windows plus both `BASE` and `SERVICE_ID`. [WinSW 2
 
 `src/server.js` owns HTTP security and dispatch; `tenants.js` owns config/routing/lazy stores; `dashboard.js` renders management pages with `dashboard-routes.js` and `dashboard-data.js`; `explorer.js` renders the content explorer; `request-log.js` owns tenant logging; `graphql-handler.js` and `protocol-routes.js` handle query/push APIs; `auth.js` verifies preview JWTs; `store.js` owns operations/persistence; `normalize.js` owns document normalization; `model.js` supplies built-ins; `schema.js` generates graphql-js types; `query-engine.js` evaluates queries; `extract.js` extracts media text; `graphiql.js` renders the playground. `scripts/` contains the Windows service tooling. `test/` contains synthetic CMS payload/query fixtures and protocol, synchronization, preview, evaluator, schema, persistence, tenant, dashboard, explorer, service and observability tests.
 
-## License
-
-Open source under the Apache License 2.0. Free to use, change and share. It is still a development tool: not for production use, and provided "as is". See [LICENSE.md](LICENSE.md).
-
-Published by Coding Koalas Pty Ltd (ACN 668 775 433). See [Legal notice](LEGAL-NOTICE.md), [Privacy](PRIVACY.md), [Clean-room record](CLEAN-ROOM.md), [Rights-holder contact](TAKEDOWN-AND-CONTACT.md) and [Contributing](CONTRIBUTING.md). Legal: legal@codingkoala.io; privacy: privacy@codingkoala.io; security: security@codingkoala.io.
-
 ## Protocol details
 
 The HTTP API and CMS client behaviour are described in [docs/protocol.md](docs/protocol.md).
+
+## Who builds this
+
+Proudly built and maintained by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator), a software company in Sydney, Australia. LDA Local Graph is free and open source under the Apache License 2.0: use it, change it and share it. Every released version stays under that licence, and the licence cannot be withdrawn. No account, no sign-up. Everything in this repository works on its own; nothing is held back for a paid version.
+
+- **Your data:** it runs on your machine and stores content there. It sends nothing to Coding Koala. The Graph server does not check for updates. Installs and upgrades through the LDA CLI download from GitHub; CLI update checks can also contact registry.npmjs.org. The GraphiQL page loads its editor script from cdn.jsdelivr.net; do not open it if a client forbids third-party scripts. Every call is listed in [PRIVACY.md](PRIVACY.md#network-connections).
+- **Your Optimizely agreement:** LDA contains no Optimizely code ([CLEAN-ROOM.md](CLEAN-ROOM.md)) and is not designed to replace your Optimizely subscription for any live site. It needs no Optimizely credentials. Before use, check your agreement's terms on development use, redirection, competing products and reverse engineering ([LEGAL-NOTICE.md](LEGAL-NOTICE.md)).
+- **Maintenance:** fixes ship as new releases ([CHANGELOG.md](CHANGELOG.md)); only the latest release gets fixes. If this repository ever goes away, the licence lets you keep, fork and run any released version. Bugs and ideas: [GitHub issues](https://github.com/coding-koala-io/lda-graph/issues).
+- **Security:** security@codingkoala.io. We aim to acknowledge reports within 2 business days ([SECURITY.md](SECURITY.md)).
+
+## Licence
+
+Apache License 2.0; see [LICENSE.md](LICENSE.md) and [NOTICE](NOTICE). A development tool: not for production use, provided "as is".
+
+Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). [Legal notice](LEGAL-NOTICE.md) · [Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Rights-holder contact](TAKEDOWN-AND-CONTACT.md).
+
+Not affiliated with or endorsed by Optimizely. Optimizely® is a trademark of Optimizely North America Inc.

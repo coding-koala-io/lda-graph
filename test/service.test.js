@@ -57,7 +57,7 @@ test('service XML: default runtime, absolute paths, quoted argument, escaped XML
   for (const [name, value] of Object.entries({id: 'LdaGraph', name: 'Local Developer Accelerator — Graph (development only)', startmode: 'Automatic', delayedAutoStart: 'true', resetfailure: '1 hour', stoptimeout: '15 sec', sizeThreshold: '10240', keepFiles: '5', domain: 'NT AUTHORITY', user: 'LocalService', logpath: options.runtimeRoot + '\\service\\logs'})) assert.equal(element(result, name), value);
   assert.equal((result.match(/<onfailure action="restart" delay="10 sec" \/>/g) ?? []).length, 3);
   assert.match(result, /<log mode="roll-by-size">/);
-  assert.match(result, /<description>.+<\/description>/);
+  assert.equal(element(result, 'description'), 'LDA Local Graph: local development stand-in compatible with Optimizely Graph. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.');
   const custom = generateServiceXml({...options, port: 19082, host: 'localhost', maxMemoryMB: 16384});
   assert.equal(element(custom, 'arguments'), `--max-old-space-size=16384 "${options.repoRoot}\\src\\server.js"`);
   assert.match(custom, /name="PORT" value="19082"/); assert.match(custom, /name="HOST" value="localhost"/);
@@ -236,7 +236,7 @@ test('README upgrade path from the pre-rename service id, CONTRIBUTING DCO/licen
   for (const text of [`## Upgrading from an older install (${legacy})`, 'lda adopt', `sc.exe stop ${legacy}`, `sc.exe delete ${legacy}`, 'scripts\\service.ps1 install -RuntimeRoot "<old runtime folder>"', 'the data folder is not touched']) assert.ok(readme.includes(text), text);
   const contributing = readFileSync(join(repo, 'CONTRIBUTING.md'), 'utf8');
   assert.ok(!contributing.includes('lawyer review'));
-  for (const text of ['`git commit -s`', 'https://developercertificate.org/', 'Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.']) assert.ok(contributing.includes(text), text);
+  for (const text of ['`git commit -s`', 'https://developercertificate.org/', 'Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant us a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.']) assert.ok(contributing.includes(text), text);
   const cleanRoom = readFileSync(join(repo, 'CLEAN-ROOM.md'), 'utf8');
   assert.ok(!cleanRoom.includes('lawyer review'));
   assert.ok(!cleanRoom.includes('remains to be confirmed'));

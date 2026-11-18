@@ -1,6 +1,6 @@
 # Security policy
 
-LDA Local Graph is a development-only tool, published by Coding Koalas Pty Ltd (ACN 668 775 433). It is meant to run on a single developer machine, bound to that machine (127.0.0.1, the default). Never expose it to a network others can reach, and never point a shared, staging or production site at it: it is not built to resist attackers.
+LDA Local Graph is a development-only tool. Built by Coding Koala. Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). It is meant to run on a single developer machine, bound to that machine (127.0.0.1, the default). Never expose it to a network others can reach, and never point a shared, staging or production site at it: it is not built to resist attackers.
 
 ## Reporting a vulnerability
 

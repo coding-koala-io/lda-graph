@@ -1,5 +1,7 @@
 # Legal rules for contributions
 
+Not affiliated with or endorsed by Optimizely.
+
 By opening a pull request you confirm all of the following.
 
 ## You must NOT submit
@@ -19,9 +21,9 @@ Every commit must be signed off (`git commit -s`), certifying the Developer Cert
 
 ## Licence of contributions
 
-Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.
+Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant us a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.
 
-Publisher: Coding Koalas Pty Ltd (ACN 668 775 433). Legal questions: legal@codingkoala.io.
+Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). Built by Coding Koala. Legal questions: legal@codingkoala.io.
 
 Maintainers may remove any contribution that breaks these rules.
 

@@ -1,5 +1,7 @@
 # Changelog
 
+Not affiliated with or endorsed by Optimizely.
+
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
 ## [1.2.3] - 2026-11-05
@@ -49,7 +51,7 @@ All notable changes are documented here, following [Keep a Changelog](https://ke
 ## [1.0.0] - 2026-10-16
 
 ### Changed
-- Rebranded as LDA Local Graph, part of Local Developer Accelerator for Optimizely by Coding Koala.
+- Rebranded as LDA Local Graph, part of Local Developer Accelerator (LDA), compatible with Optimizely CMS 13. Built by Coding Koala.
 - Adopted Business Source License 1.1 for non-production use, converting to Apache 2.0 on the Change Date.
 - Renamed the Windows service and its default runtime folder.
 
