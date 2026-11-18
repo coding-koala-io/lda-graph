@@ -4,6 +4,23 @@ Not affiliated with or endorsed by Optimizely.
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.3.0] - 2026-11-18
+
+### Added
+- The README shows how to start Local Graph on Linux and macOS with the CLI (`lda run graph`).
+- The repository includes full-page Local Graph screenshots at 360 and 720 pixels, taken from a running demo with made-up content.
+- The release ZIP includes the security policy and instructions for reporting a vulnerability.
+
+### Changed
+- Standalone Local Graph pages show the Apache 2.0 licence and the affiliation disclaimer. They link to Coding Koala except on Privacy and Legal notice, which credit Coding Koala in plain text. About lists version, CMS compatibility, source and copyright details and links to the legal notice.
+- The query editor inside the CMS has a simpler footer with the product version, a development-use notice and an About link. Its Tenants and About links open in a new tab.
+- The standalone query editor’s Tenants, About, Privacy and Licence links now open in the same tab. They previously opened in new tabs.
+- The README explains CMS compatibility, who builds Local Graph, what it connects to and how it is maintained. The package and Windows service descriptions also credit Coding Koala, and the startup message shows the version and listening address.
+
+### Fixed
+- On narrow screens, dashboard table rows stack with a label for each value, including after counts refresh.
+- The standalone query editor stacks the query and its Variables and Headers controls above the response on narrow screens. The response grows to fit its contents.
+
 ## [1.2.3] - 2026-11-05
 
 ### Changed
