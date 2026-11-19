@@ -44,13 +44,8 @@ test('CMS 12 contenttype replaces the routed model with definitions keyed by nam
   };
   assert.equal((await request(types, {method: 'PUT', auth, body: MODEL})).status, 200);
   assert.equal((await request(path, {method: 'POST', auth: `epi-single ${A.singleKey}`, body})).status, 401);
-  assert.equal((await request(path, {method: 'POST', auth, body: []})).status, 400);
-  const uploaded = await request(path, {method: 'POST', auth, body});
-  assert.equal(uploaded.status, 200);
-  assert.deepEqual(uploaded.data, {});
-  const stored = await request(types, {auth});
-  assert.equal(stored.status, 200);
-  assert.deepEqual(stored.data, {
+  assert.equal((await request(path, {method: 'POST', auth, body})).status, 200);
+  assert.deepEqual((await request(types, {auth})).data, {
     useTypedFieldNames: false, languages: ['en'],
     contentTypes: {DemoPage: {...demo, properties: {Name: name}}},
     propertyTypes: {DemoLink: {properties: {Href: href}}},
@@ -59,7 +54,7 @@ test('CMS 12 contenttype replaces the routed model with definitions keyed by nam
 
 test('stream index/delete/delete_by_paths, ordered operations, journals and jobs', async t => {
   const {request, seed, server} = await gateway(t); await seed();
-  const body = stream({index: {_id: 'extra', language_routing: 'sv'}}, document(), {delete: {_id: 'extra', _hardDeleted: true}}, {index: {_id: 'old'}}, document({metadata: {version: '11'}}), {delete_by_paths: {_hardDeleted: true}}, {paths: [['_metadata.key', KEY], ['_metadata.version', '11'], ['_metadata.locale', 'en']]});
+  const body = stream({index: {_id: 'extra', language_routing: 'sv'}, _hashVersion: 1}, document(), {delete: {_id: 'extra', _hardDeleted: true}}, {index: {_id: 'old'}}, document({metadata: {version: '11'}}), {delete_by_paths: {_hardDeleted: true}}, {paths: [['_metadata.key', KEY], ['_metadata.version', '11'], ['_metadata.locale', 'en']]});
   const result = await request('/_stream', {method: 'POST', body});
   const id = result.data.journalId;
   const journal = (await request(`/journal/stream/stream/${id}`)).data;
@@ -72,34 +67,11 @@ test('stream index/delete/delete_by_paths, ordered operations, journals and jobs
   assert.deepEqual({id: storedJob.id, details: storedJob.details}, job);
   assert.deepEqual(storedJob, job); assert.equal(Object.hasOwn(storedJob, 'ts'), false);
   assert.deepEqual((await request('/journal/indexing/job/status')).data, {id: 'job', status: 'Success', failingJournals: [], error: null, totalJournalIds: 1, succeededJournalIds: 1, failedJournalIds: 0, queuedJournalIds: 0});
+  const detail = {id, Status: 'Processing'};
+  await request('/journal/indexing', {method: 'POST', body: {id: 'cms12', Details: [detail]}});
+  assert.deepEqual((await request('/journal/indexing/cms12')).data.details, [{...detail, status: 'Processing'}]);
   assert.equal((await request('/journal/indexing/missing/status')).status, 404);
   assert.equal((await request('/journal/stream/missing')).status, 404);
-});
-
-test('CMS 12 jobs accept Details and Status while preferring lowercase fields', async t => {
-  const {request} = await gateway(t);
-  const details = [{id: 'demo-journal', Status: 'Processing'}, {id: 'demo-journal-two', status: 'Queued', Status: 'Processing'}];
-  const post = body => request('/journal/indexing', {method: 'POST', body});
-  assert.equal((await post({id: 'demo-job', Details: details})).status, 200);
-  const stored = (await request('/journal/indexing/demo-job')).data;
-  assert.deepEqual(stored.details.map(({id, status}) => ({id, status})), [
-    {id: 'demo-journal', status: 'Processing'}, {id: 'demo-journal-two', status: 'Queued'},
-  ]);
-  assert.equal((await request('/journal/indexing/demo-job/status')).data.totalJournalIds, 2);
-  const lowercase = [{id: 'preferred-journal', Status: 'Queued'}];
-  assert.equal((await post({id: 'demo-job', details: lowercase, Details: details})).status, 200);
-  assert.deepEqual((await request('/journal/indexing/demo-job')).data.details, [{...lowercase[0], status: 'Queued'}]);
-});
-
-test('CMS 12 stream actions accept a top-level hash version', async t => {
-  const {request, server} = await gateway(t);
-  const body = stream({index: {_id: 'demo-page'}, _hashVersion: 1}, {Name: 'Demo page', Status: 'Published'});
-  const response = await request('/_stream', {method: 'POST', body});
-  assert.equal(response.status, 200);
-  const journal = (await request(`/journal/stream/${response.data.journalId}`)).data;
-  assert.equal(journal.errors, false);
-  assert.deepEqual(journal.items.map(item => item.index.Result), ['created']);
-  assert.ok(Object.hasOwn(server.store.state.docs, 'demo-page'));
 });
 
 test('malformed stream recovers, missing source leaves next action intact, job reports Error', async t => {

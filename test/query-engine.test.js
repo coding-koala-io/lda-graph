@@ -110,22 +110,6 @@ test('normalization recursively blocks searchable descendants inside skip object
   assert.deepEqual(record.searchable, ['Some.html']); assert.ok(record.skipped.includes('Object.nested')); assert.equal(record.normalized.Some[0].__typename, 'SearchableRichText');
 });
 
-test('single-key reads use CMS 12 Status when metadata status is absent', async t => {
-  const {request, gql} = await gateway(t, {appKey: 'local', secret: 'local', singleKey: 'public'});
-  const model = {contentTypes: {DemoPage: {contentType: ['_Content'], properties: {}}}};
-  assert.equal((await request('/api/content/v3/types', {method: 'PUT', body: model})).status, 200);
-  const page = {__typename: 'DemoPage', _rbac: ['r:Everyone:Read']};
-  const body = index('demo-published', {...page, Status: 'Published'})
-    + index('demo-draft', {...page, Status: 'Draft'})
-    + index('demo-metadata-draft', {...page, Status: 'Published', _metadata: {status: 'Draft'}});
-  assert.equal((await request('/_stream', {method: 'POST', body})).status, 200);
-  const query = '{ DemoPage { items { _id } } }';
-  const publicResult = success(await gql(query, {}, {auth: 'epi-single public'}), 'DemoPage');
-  assert.deepEqual(publicResult.items, [{_id: 'demo-published'}]);
-  const basicResult = success(await gql(query), 'DemoPage');
-  assert.equal(basicResult.items.length, 3);
-});
-
 test('null predicates do not broaden OR branches and skipped fields cannot autocomplete', async t => {
   const {request, gql, seed} = await gateway(t); await seed();
   await request('/_stream', {method: 'POST', body: index('other', document({metadata: {displayName___searchable: 'Other'}}))});

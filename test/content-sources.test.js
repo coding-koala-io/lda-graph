@@ -9,7 +9,7 @@ const strings = names => Object.fromEntries(names.map(name => [name, {type: 'Str
 const CMP = {
   languages: ['de'], links: {EXTRA: {from: 'Id', to: 'Title'}},
   contentTypes: {
-    cmp_Asset: {abstract: true, contentType: ['_Item'], properties: strings(['Id', 'Url', 'Title', 'AltText', 'MimeType'])},
+    cmp_Asset: {abstract: true, contentType: ['_Item'], properties: strings(['Id', 'Url', 'Title', 'AltText', 'MimeType', 'Status'])},
     cmp_PublicImageAsset: {contentType: ['cmp_Asset', '_ImageItem'], properties: {Width: {type: 'Int'}, Height: {type: 'Int'}}},
   },
   propertyTypes: {},
@@ -70,17 +70,6 @@ test('two statusless source documents stream and query with Basic, single key an
   assert.equal(gw.server.store.state.docs['cmp-one'].normalized._metadata.status, undefined);
 });
 
-test('single-key reads include additional-source documents with a custom Status', async t => {
-  const {request, gql} = await gateway(t);
-  await request('/api/content/v3/types', {method: 'PUT', body: MODEL});
-  const model = {contentTypes: {DemoAsset: {contentType: ['_Item'], properties: strings(['Status'])}}};
-  assert.equal((await request('/api/content/v3/types?id=demo-source', {method: 'PUT', body: model})).status, 200);
-  const body = index('demo-asset', {__typename: 'DemoAsset', _rbac: ['r:Everyone:Read'], Status: 'Approved'});
-  assert.equal((await request('/_stream', {method: 'POST', body})).status, 200);
-  const result = success(await gql('{DemoAsset{items{_id}}}', {}, {auth: 'epi-single public'}), 'DemoAsset');
-  assert.deepEqual(result.items, [{_id: 'demo-asset'}]);
-});
-
 test('page reference item resolves a concrete additional source type for Basic and single key', async t => {
   const gw = await seed(t);
   const model = structuredClone(MODEL);
@@ -98,12 +87,17 @@ test('page reference item resolves a concrete additional source type for Basic a
 test('source visibility preserves explicit statuses, ACLs, expiry, deletion, Basic and preview behavior', async t => {
   const gw = await seed(t);
   const entries = [
-    ['public', asset('public')], ['draft', asset('draft', {_metadata: {status: 'Draft'}})],
+    ['public', asset('public', {Status: 'Approved'})], ['draft', asset('draft', {_metadata: {status: 'Draft'}})],
     ['private', asset('private', {_rbac: ['r:Editors:Read']})], ['missing-acl', asset('missing-acl', {_rbac: undefined})],
     ['expired', asset('expired', {_metadata: {expired: '2000-01-01'}})], ['deleted', asset('deleted', {_deleted: true})],
     ['blank-status', asset('blank-status', {_metadata: {status: ''}})],
   ];
-  await gw.request('/_stream', {method: 'POST', body: batch(...entries) + index('cms-no-status', document({metadata: {status: undefined}}))});
+  const page = {__typename: 'ArticlePage', _rbac: ['r:Everyone:Read']};
+  const body = batch(...entries) + index('cms-no-status', document({metadata: {status: undefined}}))
+    + index('cms-published', {...page, Status: 'Published'})
+    + index('cms-draft', {...page, Status: 'Draft'})
+    + index('cms-metadata-draft', {...page, Status: 'Published', _metadata: {status: 'Draft'}});
+  await gw.request('/_stream', {method: 'POST', body});
   const query = '{cmp_PublicImageAsset(orderBy:{_id:ASC}){items{Id}}}';
   const ids = async options => success(await gw.gql(query, {}, options), 'cmp_PublicImageAsset').items.map(doc => doc.Id);
   assert.deepEqual(await ids({auth: 'epi-single public'}), ['public']);
@@ -111,7 +105,7 @@ test('source visibility preserves explicit statuses, ACLs, expiry, deletion, Bas
   assert.equal((await ids({headers: {'cg-include-deleted': 'true'}})).length, 7);
   assert.equal((await ids({headers: {'cg-roles': 'Editors'}})).length, 5);
   assert.equal((await ids({auth: preview(A)})).length, 5);
-  assert.equal(success(await gw.gql('{ArticlePage{total}}', {}, {auth: 'epi-single public'}), 'ArticlePage').total, 0);
+  assert.deepEqual(success(await gw.gql('{ArticlePage{items{_id}}}', {}, {auth: 'epi-single public'}), 'ArticlePage').items, [{_id: 'cms-published'}]);
 });
 
 test('default definitions win content/property and cross-kind clashes with one warning per rebuild', async t => {

@@ -295,9 +295,8 @@ export class Store {
   addJob(job, jobHeader) {
     const {details = job?.Details} = job ?? {};
     if (typeof job?.id !== 'string' || !job.id || !Array.isArray(details) || details.some(detail => typeof detail?.id !== 'string' || !detail.id)) throw new Error('Job requires a string id and details containing string journal ids');
-    const normalizedDetails = details.map(detail => own(detail, 'Status') && !own(detail, 'status') ? {...detail, status: detail.Status} : detail);
-    const stored = structuredClone({...job, details: normalizedDetails});
-    Object.defineProperty(this.state.jobs, job.id, {value: {...stored, ts: new Date(this.now()).toISOString(), ogJobId: jobHeader ?? job.id}, enumerable: true, writable: true, configurable: true});
+    const normalizedDetails = details.map(detail => own(detail, 'Status') ? {status: detail.Status, ...detail} : detail);
+    Object.defineProperty(this.state.jobs, job.id, {value: structuredClone({...job, details: normalizedDetails, ts: new Date(this.now()).toISOString(), ogJobId: jobHeader ?? job.id}), enumerable: true, writable: true, configurable: true});
     this.trim('jobs', 200); this.changed();
   }
   jobStatus(id) {
