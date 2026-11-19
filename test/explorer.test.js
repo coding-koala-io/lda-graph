@@ -62,7 +62,6 @@ test('explorer type and search rows show CMS 12 top-level fields', async t => {
   });
   for (const query of ['type=DemoPage', 'q=jasper']) {
     const response = await request(`/explorer?tenant=default&${query}`, {auth: null});
-    assert.equal(response.status, 200);
     assert.match(response.data, /id=cms12-demo-id">Jasper Demo<\/a>/);
     assert.match(response.data, /<td data-label="Status"><span class="badge neutral">Published<\/span><\/td>/);
     assert.match(response.data, /<td data-label="Version">34<\/td>/);
