@@ -1,6 +1,6 @@
 import {candidatesFor} from './indexes.js';
 import {comparable, fulltextValues, valuesAt, stripHtml} from './normalize.js';
-import {isAdditionalSourceDocument} from './content-sources.js';
+import {isAdditionalSourceDocument, isCms12Document} from './content-sources.js';
 
 export const QUERY_INFO = Symbol('queryInfo');
 const list = value => Array.isArray(value) ? value : [value];
@@ -345,7 +345,7 @@ export function visibleRecord(record, context, store) {
       const permissions = ['r:Everyone:Read', ...roles.map(r => `r:${r}:Read`), ...(username ? [`u:${username}:Read`] : [])];
       if (!acl.some(r => permissions.includes(r))) return false;
     }
-    const expired = meta.expired ?? doc.StopPublish;
+    const expired = meta.expired ?? (isCms12Document(doc) ? doc.StopPublish : undefined);
     if ((!privilegedRead || headers['cg-include-expired'] === 'false') && expired && Date.parse(expired) < Date.now()) return false;
     return true;
   } catch (error) { if (store) warnBadRecord(store, record, error); return false; }

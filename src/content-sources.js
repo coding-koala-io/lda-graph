@@ -14,11 +14,14 @@ export function mergeSourceModels(sources, onConflict = () => {}) {
   return model;
 }
 
+export const isCms12Document = doc => !doc._metadata?.types?.length && Array.isArray(doc.ContentType) &&
+  doc.ContentLink != null && typeof doc.ContentLink === 'object' && !Array.isArray(doc.ContentLink);
+
 /** CMS 12's Content base also belongs to the shared _Content root. */
 export function documentTypeHierarchy(doc) {
   const types = doc._metadata?.types;
   if (Array.isArray(types) && types.length) return types;
-  if (!Array.isArray(doc.ContentType)) return [];
+  if (!isCms12Document(doc)) return [];
   return doc.ContentType.includes('Content') ? [...doc.ContentType, '_Content'] : doc.ContentType;
 }
 

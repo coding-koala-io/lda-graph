@@ -5,6 +5,7 @@ import {graphql, getNamedType, isLeafType, isObjectType, isInterfaceType, isNonN
 import {escapeHtml as e} from './graphiql.js';
 import {page, pre, link, table, hidden, number, badge, timestamp, tenantPath} from './dashboard.js';
 import {stats, ownValue} from './dashboard-data.js';
+import {isCms12Document} from './content-sources.js';
 
 const PAGE_SIZE = 50;
 const SYSTEM = new Set(['_id', '__typename', '_metadata', '_itemMetadata', '_rbac', '_modified', '_deleted']);
@@ -24,11 +25,14 @@ const pageNumber = (params, total) => {
 };
 const pager = (params, {current, last}) => `<p>${current > 1 ? link(url(params, {page: current - 1}), 'Previous 50') : ''} ${current < last ? link(url(params, {page: current + 1}), 'Next 50') : ''}</p>`;
 const select = (name, label, values, current) => `<label>${e(label)}<br><select name="${name}"><option value="">All</option>${values.map(value => `<option value="${e(value)}"${value === current ? ' selected' : ''}>${e(value || '(none)')}</option>`).join('')}</select></label>`;
-const summary = (doc, stored = doc) => ({
-  id: doc._id, type: doc.__typename ?? '', displayName: doc._metadata?.displayName ?? stored.Name,
-  locale: doc._metadata?.locale ?? '', status: doc._metadata?.status ?? stored.Status ?? '',
-  version: doc._metadata?.version ?? stored.ContentLink?.WorkId, lastModified: doc._metadata?.lastModified ?? stored.Changed,
-});
+const summary = (doc, stored = doc) => {
+  const cms12 = isCms12Document(stored) ? stored : undefined;
+  return {
+    id: doc._id, type: (cms12 ?? doc).__typename ?? '', displayName: doc._metadata?.displayName ?? cms12?.Name,
+    locale: doc._metadata?.locale ?? '', status: doc._metadata?.status ?? cms12?.Status ?? '',
+    version: doc._metadata?.version ?? cms12?.ContentLink.WorkId, lastModified: doc._metadata?.lastModified ?? cms12?.Changed,
+  };
+};
 const itemRow = (base, doc, withType) => [link(url(base, {id: doc.id}), doc.displayName ?? doc.id), ...(withType ? [e(doc.type)] : []), e(doc.locale), badge(doc.status), e(doc.version ?? ''), timestamp(doc.lastModified)];
 
 export function explorerPickerHtml(registry) {

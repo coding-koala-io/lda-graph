@@ -52,7 +52,6 @@ export function normalizeDocument(raw, id, snapshotTime, locale) {
   for (const key of ['types', 'path', 'locales']) {
     if (!Array.isArray(meta[key]) || meta[key].some(v => typeof v !== 'string')) meta[key] = [];
   }
-  if (!meta.types.length && Array.isArray(normalized.ContentType) && typeof normalized.Name === 'string' && !skipped.has('Name')) searchable.add('Name');
   for (const key of ['key', 'locale', 'status', 'expired', 'lastModified', 'variation', 'displayName', '__typename']) {
     if (meta[key] != null && typeof meta[key] !== 'string') delete meta[key];
   }

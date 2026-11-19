@@ -8,12 +8,13 @@ import {normalizeDocument, comparable} from '../src/normalize.js';
 test('CMS 12 StopPublish hides expired documents from single-key reads', async t => {
   const {server, seed, gql} = await gateway(t); await seed();
   server.store.upsert('expired-demo', {
-    __typename: 'ArticlePage', ContentType: ['ArticlePage', 'Page', 'Content'], Name: 'Expired Demo',
+    __typename: 'ArticlePage', ContentType: ['ArticlePage', 'Page', 'Content'], ContentLink: {WorkId: 1},
     Status: 'Published', StopPublish: '2020-01-01T00:00:00Z', _rbac: ['r:Everyone:Read'],
   });
-  const query = '{ArticlePage(ids:["expired-demo"]){total}}';
-  assert.equal(success(await gql(query, {}, {auth: 'epi-single public'}), 'ArticlePage').total, 0);
-  assert.equal(success(await gql(query), 'ArticlePage').total, 1);
+  server.store.upsert('cms13-control', document({ContentType: ['ArticlePage'], ContentLink: {WorkId: 2}, StopPublish: '2020-01-01T00:00:00Z'}));
+  const query = '{ArticlePage(ids:["expired-demo","cms13-control"],orderBy:{_id:ASC}){items{_id}}}';
+  assert.deepEqual(success(await gql(query, {}, {auth: 'epi-single public'}), 'ArticlePage').items, [{_id: 'cms13-control'}]);
+  assert.deepEqual(success(await gql(query), 'ArticlePage').items, [{_id: 'cms13-control'}, {_id: 'expired-demo'}]);
 });
 
 test('string operators, Unicode prefixes, wildcards, equality and GUID normalization', () => {
