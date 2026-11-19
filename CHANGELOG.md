@@ -4,6 +4,15 @@ Not affiliated with or endorsed by Optimizely.
 
 All notable changes are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## [1.4.0] - unreleased
+
+### Added
+- Adds support for Optimizely CMS 12 sites (tested with CMS 12.35.0 and Optimizely.ContentGraph.Cms 4.4.5).
+
+### Changed
+- CMS 13 behaviour is unchanged; all existing tests pass.
+- Compatible with Optimizely CMS 12 and 13. Development use only, not for production. Not affiliated with or endorsed by Optimizely.
+
 ## [1.3.0] - 2026-11-18
 
 ### Added
