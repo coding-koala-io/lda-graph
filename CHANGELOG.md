@@ -7,7 +7,7 @@ All notable changes are documented here, following [Keep a Changelog](https://ke
 ## [1.4.1] - 2026-11-20
 
 ### Fixed
-- Smooth rebuild now completes on Optimizely CMS 12 sites: start, accept, revert and abandon from the CMS Smooth Rebuild screen.
+- Smooth rebuild now completes on Optimizely CMS 12 sites: start, accept and revert from the CMS Smooth Rebuild screen.
 
 ## [1.4.0] - 2026-11-19
 
