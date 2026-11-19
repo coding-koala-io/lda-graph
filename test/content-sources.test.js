@@ -70,6 +70,17 @@ test('two statusless source documents stream and query with Basic, single key an
   assert.equal(gw.server.store.state.docs['cmp-one'].normalized._metadata.status, undefined);
 });
 
+test('single-key reads include additional-source documents with a custom Status', async t => {
+  const {request, gql} = await gateway(t);
+  await request('/api/content/v3/types', {method: 'PUT', body: MODEL});
+  const model = {contentTypes: {DemoAsset: {contentType: ['_Item'], properties: strings(['Status'])}}};
+  assert.equal((await request('/api/content/v3/types?id=demo-source', {method: 'PUT', body: model})).status, 200);
+  const body = index('demo-asset', {__typename: 'DemoAsset', _rbac: ['r:Everyone:Read'], Status: 'Approved'});
+  assert.equal((await request('/_stream', {method: 'POST', body})).status, 200);
+  const result = success(await gql('{DemoAsset{items{_id}}}', {}, {auth: 'epi-single public'}), 'DemoAsset');
+  assert.deepEqual(result.items, [{_id: 'demo-asset'}]);
+});
+
 test('page reference item resolves a concrete additional source type for Basic and single key', async t => {
   const gw = await seed(t);
   const model = structuredClone(MODEL);
