@@ -11,13 +11,15 @@
 
 # LDA Local Graph
 
-**A local development tool compatible with Optimizely CMS 13: a Graph stand-in on your own laptop.** Publish in the CMS, query in GraphiQL, and see every sync request, without waiting for a cloud Graph environment.
+**A local development tool compatible with Optimizely CMS 12 and 13: a Graph stand-in on your own laptop.** Publish in the CMS, query in GraphiQL, and see every sync request, without waiting for a cloud Graph environment.
 
 ![LDA Local Graph demo: publish in the CMS and query the change in GraphiQL](docs/media/lda-graph-demo.gif)
 
 Watch the 43-second demo: https://youtu.be/uIBKd3OSXro
 
-Made for CMS 13 sites. Not tested with CMS 12.
+Compatible with Optimizely CMS 12 and 13. Development use only, not for production. Not affiliated with or endorsed by Optimizely.
+
+Tested with CMS 13 sites, and with CMS 12 using EPiServer.CMS 12.35.0 and Optimizely.ContentGraph.Cms 4.4.5.
 
 Part of Local Developer Accelerator (LDA) · Free and open source (Apache 2.0) · Built by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator) · No telemetry ([network calls](PRIVACY.md#network-connections))
 
@@ -63,7 +65,7 @@ Moving a site from CMS 12? Coding Koala also offers a paid readiness review: [Re
 
 ## Getting started from source
 
-1. **Requirements:** Node.js 24 or later, and a CMS 13 site (with the Optimizely Graph packages) that you can run locally.
+1. **Requirements:** Node.js 24 or later, and a CMS 12 or CMS 13 site (with the Optimizely Graph packages) that you can run locally.
 2. **Install and start:**
 
    ```powershell
