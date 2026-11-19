@@ -339,7 +339,7 @@ export class Store {
       if (!this.state.slots.old) delete this.state.metadata.oldSlotSince;
       delete this.state.slots.new; delete this.state.metadata.newTypesUpdated; delete this.state.metadata.newTypesMethod;
     }
-    this.changed(); return 'done';
+    this.changed(); return 'Done';
   }
   reset() {
     this.state.types = {}; this.state.docs = {}; this.state.tombstones = {}; this.state.journals = {}; this.state.jobs = {}; this.state.slots = {};

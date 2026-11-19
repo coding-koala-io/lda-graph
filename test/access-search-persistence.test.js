@@ -49,7 +49,7 @@ test('preview reads drafts through ACLs but cannot mutate or administer', async 
     }
   }
   assert.deepEqual(server.store.state, state, 'Rejected operations must not change the slots or content');
-  assert.equal(success(await gql('mutation{deployNewAccountVersion}', {}, {auth: ADMIN}), 'deployNewAccountVersion'), 'done');
+  assert.equal(success(await gql('mutation{deployNewAccountVersion}', {}, {auth: ADMIN}), 'deployNewAccountVersion'), 'Done');
 });
 
 test('synthetic ContentReference items resolve IData with slot and access isolation', async t => {

@@ -16,7 +16,7 @@ const modelWith = name => ({...structuredClone(MODEL), contentTypes: {...MODEL.c
 const liveModel = modelWith('OriginalPage');
 const newModel = modelWith('RebuiltPage');
 const mutate = async (gw, name, headers = {}) => {
-  assert.equal(success(await gw.gql(`mutation{${name}}`, {}, {auth: basic(A), headers}), name), 'done');
+  assert.equal(success(await gw.gql(`mutation{${name}}`, {}, {auth: basic(A), headers}), name), 'Done');
 };
 
 async function seed(gw) {
