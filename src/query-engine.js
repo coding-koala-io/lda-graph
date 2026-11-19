@@ -1,6 +1,6 @@
 import {candidatesFor} from './indexes.js';
 import {comparable, fulltextValues, valuesAt, stripHtml} from './normalize.js';
-import {isAdditionalSourceDocument} from './content-sources.js';
+import {isAdditionalSourceDocument, isCms12Document} from './content-sources.js';
 
 export const QUERY_INFO = Symbol('queryInfo');
 const list = value => Array.isArray(value) ? value : [value];
@@ -336,7 +336,7 @@ export function visibleRecord(record, context, store) {
     const doc = record.normalized; const meta = doc._metadata ?? {};
     const privilegedRead = auth === 'basic' || auth === 'preview';
     const acl = Array.isArray(doc._rbac) && doc._rbac.every(r => typeof r === 'string') ? doc._rbac : [];
-    const published = meta.status === 'Published' || (meta.status == null && store && isAdditionalSourceDocument(doc, store.slot(context.slot).types));
+    const published = (meta.status ?? doc.Status) === 'Published' || (meta.status == null && store && isAdditionalSourceDocument(doc, store.slot(context.slot).types));
     if (!privilegedRead && (!published || !acl.includes('r:Everyone:Read') || doc._deleted)) return false;
     if (privilegedRead && doc._deleted && headers['cg-include-deleted'] !== 'true') return false;
     if (auth === 'preview' || (auth === 'basic' && (headers['cg-roles'] != null || headers['cg-username'] != null))) {
@@ -345,7 +345,8 @@ export function visibleRecord(record, context, store) {
       const permissions = ['r:Everyone:Read', ...roles.map(r => `r:${r}:Read`), ...(username ? [`u:${username}:Read`] : [])];
       if (!acl.some(r => permissions.includes(r))) return false;
     }
-    if ((!privilegedRead || headers['cg-include-expired'] === 'false') && meta.expired && Date.parse(meta.expired) < Date.now()) return false;
+    const expired = meta.expired ?? (isCms12Document(doc) ? doc.StopPublish : undefined);
+    if ((!privilegedRead || headers['cg-include-expired'] === 'false') && expired && Date.parse(expired) < Date.now()) return false;
     return true;
   } catch (error) { if (store) warnBadRecord(store, record, error); return false; }
 }

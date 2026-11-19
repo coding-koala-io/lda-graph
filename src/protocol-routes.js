@@ -6,9 +6,18 @@ const ownValue = (object, key) => Object.hasOwn(object, key) ? object[key] : und
 const wireJob = ({ts, ogJobId, ...job}) => job;
 const wireJournal = ({ts, ...journal}) => journal;
 
+function keyedTypes(types) {
+  if (!Array.isArray(types)) return types;
+  return Object.fromEntries(types.map(({name, properties, ...type}) => [name, {
+    ...type,
+    properties: Array.isArray(properties) ? Object.fromEntries(properties.map(({name, ...property}) => [name, property])) : properties,
+  }]));
+}
+
 /** CMS push API, operating only on the already-routed tenant. */
 export async function handleProtocol({path, method, url, text, bytes, headers, store, rebuild, slot, source, send, diagnostic}) {
-  if (path === '/api/content/v3/types') {
+  const cms12Types = path === '/contenttype' && method === 'POST';
+  if (path === '/api/content/v3/types' || cms12Types) {
     if (method === 'GET') {
       const model = ownValue(store.slot(slot).types, source);
       return send(model ? 200 : 404, model ?? {message: 'Types not found'});
@@ -16,7 +25,11 @@ export async function handleProtocol({path, method, url, text, bytes, headers, s
     if (['PUT', 'POST'].includes(method)) {
       const model = parseJson(text);
       if (!model || typeof model !== 'object' || Array.isArray(model)) return send(400, {message: 'Types model must be an object'});
-      store.setTypes(model, {slot, source, merge: method === 'POST'}); rebuild(); return send(200, {});
+      if (cms12Types) {
+        model.contentTypes = keyedTypes(model.contentTypes);
+        model.propertyTypes = keyedTypes(model.propertyTypes);
+      }
+      store.setTypes(model, {slot, source, merge: !cms12Types && method === 'POST'}); rebuild(); return send(200, {});
     }
   }
   if (path === '/api/content/v3/sources') {

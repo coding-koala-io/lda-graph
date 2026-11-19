@@ -1,4 +1,5 @@
 import {comparable, valuesAt} from './normalize.js';
+import {isCms12Document} from './content-sources.js';
 
 export const indexedPaths = new Set(['_id', '_metadata.key', ...['default', 'hierarchical', 'internal', 'base'].map(name => `_metadata.url.${name}`)]);
 export const indexValue = value => typeof comparable(value) === 'string' ? comparable(value).toLowerCase() : comparable(value);
@@ -7,7 +8,11 @@ const blocked = (record, path) => record.skipped?.some(p => p === path || path.s
 function entries(record) {
   const doc = record?.normalized;
   if (!doc) return [];
-  const result = [...new Set([doc.__typename, ...(Array.isArray(doc._metadata?.types) ? doc._metadata.types : [])])].filter(t => typeof t === 'string').map(t => [null, t]);
+  let types = Array.isArray(doc._metadata?.types) ? doc._metadata.types : [];
+  if (isCms12Document(doc)) {
+    types = doc.ContentType.includes('Content') ? [...doc.ContentType, '_Content'] : doc.ContentType;
+  }
+  const result = [...new Set([doc.__typename, ...types])].filter(t => typeof t === 'string').map(t => [null, t]);
   for (const path of indexedPaths) if (!blocked(record, path)) {
     for (const value of valuesAt(doc, path)) if (value == null || ['string', 'number', 'boolean'].includes(typeof value)) result.push([path, indexValue(value)]);
   }

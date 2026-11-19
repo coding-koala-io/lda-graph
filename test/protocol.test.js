@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {gateway, success, BASIC} from './helpers.js';
+import {tenants, A, basic} from './tenant-helpers.js';
 import {MODEL, KEY, GUID, ID, document, stream, index, SEARCH, GET_CONTENT, ARTICLE, CONTENT, ITEM} from './fixtures.js';
 
 test('startup model GET/PUT/POST, minimal schema, source and purge endpoints', async t => {
@@ -28,9 +29,32 @@ test('startup model GET/PUT/POST, minimal schema, source and purge endpoints', a
   assert.equal(Object.keys(server.store.state.docs).length, 0);
 });
 
+test('CMS 12 contenttype replaces the routed model with definitions keyed by name', async t => {
+  const {request} = await tenants(t, {dataDir: ':memory:', logDir: ':memory:'});
+  const auth = basic(A);
+  const path = '/contenttype?id=demo-source';
+  const types = '/api/content/v3/types?id=demo-source';
+  const name = {helpText: '', type: 'String', searchable: true, index: true};
+  const href = {helpText: '', type: 'String', searchable: false, index: true};
+  const demo = {abstract: false, base: 'Page', contentType: ['Content']};
+  const body = {
+    useTypedFieldNames: false, languages: ['en'],
+    contentTypes: [{name: 'DemoPage', ...demo, properties: [{name: 'Name', ...name}]}],
+    propertyTypes: [{name: 'DemoLink', properties: [{name: 'Href', ...href}]}],
+  };
+  assert.equal((await request(types, {method: 'PUT', auth, body: MODEL})).status, 200);
+  assert.equal((await request(path, {method: 'POST', auth: `epi-single ${A.singleKey}`, body})).status, 401);
+  assert.equal((await request(path, {method: 'POST', auth, body})).status, 200);
+  assert.deepEqual((await request(types, {auth})).data, {
+    useTypedFieldNames: false, languages: ['en'],
+    contentTypes: {DemoPage: {...demo, properties: {Name: name}}},
+    propertyTypes: {DemoLink: {properties: {Href: href}}},
+  });
+});
+
 test('stream index/delete/delete_by_paths, ordered operations, journals and jobs', async t => {
   const {request, seed, server} = await gateway(t); await seed();
-  const body = stream({index: {_id: 'extra', language_routing: 'sv'}}, document(), {delete: {_id: 'extra', _hardDeleted: true}}, {index: {_id: 'old'}}, document({metadata: {version: '11'}}), {delete_by_paths: {_hardDeleted: true}}, {paths: [['_metadata.key', KEY], ['_metadata.version', '11'], ['_metadata.locale', 'en']]});
+  const body = stream({index: {_id: 'extra', language_routing: 'sv'}, _hashVersion: 1}, document(), {delete: {_id: 'extra', _hardDeleted: true}}, {index: {_id: 'old'}}, document({metadata: {version: '11'}}), {delete_by_paths: {_hardDeleted: true}}, {paths: [['_metadata.key', KEY], ['_metadata.version', '11'], ['_metadata.locale', 'en']]});
   const result = await request('/_stream', {method: 'POST', body});
   const id = result.data.journalId;
   const journal = (await request(`/journal/stream/stream/${id}`)).data;
@@ -43,6 +67,9 @@ test('stream index/delete/delete_by_paths, ordered operations, journals and jobs
   assert.deepEqual({id: storedJob.id, details: storedJob.details}, job);
   assert.deepEqual(storedJob, job); assert.equal(Object.hasOwn(storedJob, 'ts'), false);
   assert.deepEqual((await request('/journal/indexing/job/status')).data, {id: 'job', status: 'Success', failingJournals: [], error: null, totalJournalIds: 1, succeededJournalIds: 1, failedJournalIds: 0, queuedJournalIds: 0});
+  const detail = {id, Status: 'Processing'};
+  await request('/journal/indexing', {method: 'POST', body: {id: 'cms12', Details: [detail]}});
+  assert.deepEqual((await request('/journal/indexing/cms12')).data.details, [{...detail, status: 'Processing'}]);
   assert.equal((await request('/journal/indexing/missing/status')).status, 404);
   assert.equal((await request('/journal/stream/missing')).status, 404);
 });

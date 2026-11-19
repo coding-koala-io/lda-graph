@@ -252,7 +252,7 @@ export class Store {
       try {
         const obj = JSON.parse(lines[i]);
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('Action must be an object');
-        const keys = Object.keys(obj);
+        const keys = Object.keys(obj).filter(key => key !== '_hashVersion');
         if (keys.length !== 1 || !['index', 'delete', 'delete_by_paths'].includes(keys[0])) throw new Error('Expected index, delete, or delete_by_paths action');
         const op = keys[0];
         action = obj[op];
@@ -293,8 +293,10 @@ export class Store {
     for (const key of keys.slice(0, Math.max(0, keys.length - limit))) delete this.state[name][key];
   }
   addJob(job, jobHeader) {
-    if (typeof job?.id !== 'string' || !job.id || !Array.isArray(job.details) || job.details.some(detail => typeof detail?.id !== 'string' || !detail.id)) throw new Error('Job requires a string id and details containing string journal ids');
-    Object.defineProperty(this.state.jobs, job.id, {value: {...structuredClone(job), ts: new Date(this.now()).toISOString(), ogJobId: jobHeader ?? job.id}, enumerable: true, writable: true, configurable: true});
+    const {details = job?.Details} = job ?? {};
+    if (typeof job?.id !== 'string' || !job.id || !Array.isArray(details) || details.some(detail => typeof detail?.id !== 'string' || !detail.id)) throw new Error('Job requires a string id and details containing string journal ids');
+    const normalizedDetails = details.map(detail => own(detail, 'Status') ? {status: detail.Status, ...detail} : detail);
+    Object.defineProperty(this.state.jobs, job.id, {value: structuredClone({...job, details: normalizedDetails, ts: new Date(this.now()).toISOString(), ogJobId: jobHeader ?? job.id}), enumerable: true, writable: true, configurable: true});
     this.trim('jobs', 200); this.changed();
   }
   jobStatus(id) {

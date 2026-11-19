@@ -9,7 +9,7 @@ const strings = names => Object.fromEntries(names.map(name => [name, {type: 'Str
 const CMP = {
   languages: ['de'], links: {EXTRA: {from: 'Id', to: 'Title'}},
   contentTypes: {
-    cmp_Asset: {abstract: true, contentType: ['_Item'], properties: strings(['Id', 'Url', 'Title', 'AltText', 'MimeType'])},
+    cmp_Asset: {abstract: true, contentType: ['_Item'], properties: strings(['Id', 'Url', 'Title', 'AltText', 'MimeType', 'Status'])},
     cmp_PublicImageAsset: {contentType: ['cmp_Asset', '_ImageItem'], properties: {Width: {type: 'Int'}, Height: {type: 'Int'}}},
   },
   propertyTypes: {},
@@ -23,6 +23,24 @@ const asset = (id, overrides = {}) => ({
 });
 const batch = (...entries) => stream(...entries.flatMap(([id, doc]) => [{index: {_id: id}}, doc]));
 const ASSETS = '{cmp_PublicImageAsset(where:{_itemMetadata:{key:{in:["one","two"]}}},orderBy:{_id:ASC}){items{Id Url Title Width}}}';
+
+test('CMS 12 ContentType populates both content roots and preserves source ownership', async t => {
+  const {request, server, gql} = await gateway(t);
+  const contentTypes = [
+    {name: 'Content', abstract: true, properties: [{name: 'Name', type: 'String', searchable: true}]},
+    {name: 'DemoPage', contentType: ['Content'], properties: []},
+  ];
+  assert.equal((await request('/contenttype', {method: 'POST', body: {contentTypes, useTypedFieldNames: false}})).status, 200);
+  server.store.upsert('demo-page', {__typename: 'DemoPage', ContentType: ['Page', 'DemoPage', 'Content'], ContentLink: {WorkId: 1}, Name___searchable: 'Quartz Demo', Status: 'Published'});
+  for (const root of ['Content', '_Content']) assert.equal(success(await gql(`{${root}{total}}`), root).total, 1);
+  const other = {contentTypes: {Content: {properties: {}}, OtherAsset: {properties: strings(['Id'])}}};
+  assert.equal((await request('/api/content/v3/types?id=other', {method: 'PUT', body: other})).status, 200);
+  server.store.upsert('no-content-link', {__typename: 'DemoPage', _metadata: {types: []}, ContentType: ['OtherAsset']});
+  server.store.upsert('cms13-control', {__typename: 'DemoPage', _metadata: {types: ['DemoPage']}, ContentType: ['OtherAsset'], ContentLink: {WorkId: 2}});
+  assert.equal(success(await gql('{OtherAsset{total}}'), 'OtherAsset').total, 0);
+  assert.equal((await request('/api/content/v3/sources?id=other&mode=reset', {method: 'DELETE'})).status, 200);
+  assert.deepEqual(success(await gql('{Content{items{_id}}}'), 'Content').items, [{_id: 'demo-page'}]);
+});
 async function seed(t, options = {}) {
   const gw = await gateway(t, options);
   await gw.request('/api/content/v3/types', {method: 'PUT', body: MODEL});
@@ -87,12 +105,17 @@ test('page reference item resolves a concrete additional source type for Basic a
 test('source visibility preserves explicit statuses, ACLs, expiry, deletion, Basic and preview behavior', async t => {
   const gw = await seed(t);
   const entries = [
-    ['public', asset('public')], ['draft', asset('draft', {_metadata: {status: 'Draft'}})],
+    ['public', asset('public', {Status: 'Approved'})], ['draft', asset('draft', {_metadata: {status: 'Draft'}})],
     ['private', asset('private', {_rbac: ['r:Editors:Read']})], ['missing-acl', asset('missing-acl', {_rbac: undefined})],
     ['expired', asset('expired', {_metadata: {expired: '2000-01-01'}})], ['deleted', asset('deleted', {_deleted: true})],
     ['blank-status', asset('blank-status', {_metadata: {status: ''}})],
   ];
-  await gw.request('/_stream', {method: 'POST', body: batch(...entries) + index('cms-no-status', document({metadata: {status: undefined}}))});
+  const page = {__typename: 'ArticlePage', _rbac: ['r:Everyone:Read']};
+  const body = batch(...entries) + index('cms-no-status', document({metadata: {status: undefined}}))
+    + index('cms-published', {...page, Status: 'Published'})
+    + index('cms-draft', {...page, Status: 'Draft'})
+    + index('cms-metadata-draft', {...page, Status: 'Published', _metadata: {status: 'Draft'}});
+  await gw.request('/_stream', {method: 'POST', body});
   const query = '{cmp_PublicImageAsset(orderBy:{_id:ASC}){items{Id}}}';
   const ids = async options => success(await gw.gql(query, {}, options), 'cmp_PublicImageAsset').items.map(doc => doc.Id);
   assert.deepEqual(await ids({auth: 'epi-single public'}), ['public']);
@@ -100,7 +123,7 @@ test('source visibility preserves explicit statuses, ACLs, expiry, deletion, Bas
   assert.equal((await ids({headers: {'cg-include-deleted': 'true'}})).length, 7);
   assert.equal((await ids({headers: {'cg-roles': 'Editors'}})).length, 5);
   assert.equal((await ids({auth: preview(A)})).length, 5);
-  assert.equal(success(await gw.gql('{ArticlePage{total}}', {}, {auth: 'epi-single public'}), 'ArticlePage').total, 0);
+  assert.deepEqual(success(await gw.gql('{ArticlePage{items{_id}}}', {}, {auth: 'epi-single public'}), 'ArticlePage').items, [{_id: 'cms-published'}]);
 });
 
 test('default definitions win content/property and cross-kind clashes with one warning per rebuild', async t => {
