@@ -113,7 +113,7 @@ Browser GraphQL GET, POST and OPTIONS use the configured CORS allowlist; permitt
 
 ## Slots and smooth rebuild
 
-Slot mutations use Basic authentication through `/content/v2?cache=false` and return `{ "data": { "<mutation>": "done" } }` on success. Language arguments are accepted; promotion swaps the whole pending slot.
+Slot mutations use Basic authentication through `/content/v2?cache=false` and return `{ "data": { "<mutation>": "Done" } }` on success. Language arguments are accepted; promotion swaps the whole pending slot.
 
 | Mutation | Behavior |
 | --- | --- |

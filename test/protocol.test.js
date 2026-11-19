@@ -184,25 +184,46 @@ test('locale, ids and variation choices including originals', async t => {
 
 test('smooth rebuild keeps new documents/types isolated and mutations accept/revert/discard', async t => {
   const {request, gql, seed} = await gateway(t); await seed();
-  assert.equal(success(await gql('mutation { deployNewAccountVersion(languages:["en"]) }'), 'deployNewAccountVersion'), 'done');
+  assert.equal(success(await gql('mutation { deployNewAccountVersion(languages:["en"]) }'), 'deployNewAccountVersion'), 'Done');
   const newModel = structuredClone(MODEL); newModel.contentTypes.NewPage = {contentType: ['_Page'], properties: {NewField: {type: 'String'}}};
   await request('/api/content/v3/types', {method: 'PUT', body: newModel, headers: {'cg-deploy-new': 'true'}});
   await request('/_stream', {method: 'POST', body: index('new', document({__typename: 'NewPage', metadata: {types: ['NewPage', '_Page', '_Content', '_Item']}, 'NewField$$String': 'new field'}), {version: 'new'})});
   assert.equal(success(await gql('{ _Content {items {_id}} }'), '_Content').items[0]._id, ID);
   assert.equal(success(await gql('{ NewPage {items {NewField}} }', {}, {headers: {'cg-use-new': 'true'}}), 'NewPage').items[0].NewField, 'new field');
   assert.ok((await gql('{ NewPage {total} }')).errors);
-  assert.equal(success(await gql('mutation { useNewAccountVersion(languages:["en"]) }'), 'useNewAccountVersion'), 'done');
+  assert.equal(success(await gql('mutation { useNewAccountVersion(languages:["en"]) }'), 'useNewAccountVersion'), 'Done');
   assert.equal(success(await gql('{ _Content {items {_id}} }'), '_Content').items[0]._id, 'new');
   assert.deepEqual(Object.keys((await request('/__debug/stats')).data.slots), ['live', 'new', 'old']);
   for (const mutation of ['useOldAccountVersion', 'abandonSlot']) {
     await gql('mutation { deployNewAccountVersion }');
     await request('/_doc/unwanted?version=new', {method: 'POST', body: document()});
-    assert.equal(success(await gql(`mutation { ${mutation} }`), mutation), 'done');
+    assert.equal(success(await gql(`mutation { ${mutation} }`), mutation), 'Done');
     assert.equal(success(await gql('{ _Content {total} }'), '_Content').total, 1);
     assert.equal(success(await gql('{ _Content {items {_id}} }'), '_Content').items[0]._id, ID);
   }
   assert.ok((await gql('{ NewPage {total} }')).errors);
   assert.ok((await gql('mutation { abandonSlot }', {}, {auth: 'epi-single public'})).errors);
+});
+
+test('CMS 12 smooth rebuild stages types and documents before promoting them', async t => {
+  const {request, gql, seed} = await gateway(t); await seed();
+  const deploy = await request('/content/v2?slot=new', {method: 'POST', body: {query: 'mutation { deployNewAccountVersion(languages: ["en","sv"]) }'}});
+  assert.equal(deploy.status, 200);
+  assert.equal(success(deploy.data, 'deployNewAccountVersion'), 'Done');
+  const types = {useTypedFieldNames: false, languages: ['en', 'sv'], contentTypes: [{name: 'OrchardPage', base: 'Page', contentType: ['Content'], properties: []}]};
+  assert.equal((await request('/contenttype', {method: 'POST', headers: {'cg-deploy-new': 'true'}, body: types})).status, 200);
+  const body = stream({index: {_id: 'orchard', language_routing: 'en', version: 'new'}, _hashVersion: 1}, document({__typename: 'OrchardPage', metadata: {types: ['OrchardPage', 'Content']}}));
+  assert.equal((await request('/_stream', {method: 'POST', headers: {'Content-Type': 'application/x-ndjson'}, body})).status, 200);
+  assert.deepEqual(success(await gql('{ _Content {items {_id}} }'), '_Content').items, [{_id: ID}]);
+  const query = '{ OrchardPage {items {_id}} }';
+  assert.ok((await gql(query)).errors);
+  assert.deepEqual(success(await gql(query, {}, {headers: {'cg-query-new': 'true'}}), 'OrchardPage').items, [{_id: 'orchard'}]);
+  assert.deepEqual((await request('/__debug/stats')).data.slots, {live: 1, new: 1, old: null});
+  const accept = await request('/content/v2', {method: 'POST', headers: {'cg-use-new': 'true'}, body: {query: 'mutation { useNewAccountVersion(languages: ["en","sv"]) }'}});
+  assert.equal(accept.status, 200);
+  assert.equal(success(accept.data, 'useNewAccountVersion'), 'Done');
+  assert.deepEqual(success(await gql(query), 'OrchardPage').items, [{_id: 'orchard'}]);
+  assert.deepEqual((await request('/__debug/stats')).data.slots, {live: 1, new: null, old: 1});
 });
 
 test('GraphQL parse/validation/coercion errors, operationName and variables string/null', async t => {
