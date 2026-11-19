@@ -162,7 +162,7 @@ export function createServer(options = {}) {
         if (runtime.busy) return send(503, {message: 'Tenant storage maintenance in progress'});
       } else if (!runtime && registry.legacy) runtime = registry.get('default', false);
       const auth = typeof identity === 'object' && identity ? identity.kind : identity;
-      const pushRoute = /^\/(api|_stream|_doc|journal|account|extract|clientlog)(\/|$)/.test(path);
+      const pushRoute = /^\/(api|_stream|_doc|journal|account|extract|clientlog|contenttype)(\/|$)/.test(path);
       if (pushRoute && auth !== 'basic') return send(401, {message: 'Invalid credentials'});
       const queryHeaders = {...request.headers};
       if (identity && typeof identity === 'object') {

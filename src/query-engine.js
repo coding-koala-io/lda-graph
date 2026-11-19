@@ -336,7 +336,8 @@ export function visibleRecord(record, context, store) {
     const doc = record.normalized; const meta = doc._metadata ?? {};
     const privilegedRead = auth === 'basic' || auth === 'preview';
     const acl = Array.isArray(doc._rbac) && doc._rbac.every(r => typeof r === 'string') ? doc._rbac : [];
-    const published = meta.status === 'Published' || (meta.status == null && store && isAdditionalSourceDocument(doc, store.slot(context.slot).types));
+    const status = Object.hasOwn(meta, 'status') ? meta.status : doc.Status;
+    const published = status === 'Published' || (status == null && store && isAdditionalSourceDocument(doc, store.slot(context.slot).types));
     if (!privilegedRead && (!published || !acl.includes('r:Everyone:Read') || doc._deleted)) return false;
     if (privilegedRead && doc._deleted && headers['cg-include-deleted'] !== 'true') return false;
     if (auth === 'preview' || (auth === 'basic' && (headers['cg-roles'] != null || headers['cg-username'] != null))) {
