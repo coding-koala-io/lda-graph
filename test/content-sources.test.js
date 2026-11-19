@@ -23,6 +23,24 @@ const asset = (id, overrides = {}) => ({
 });
 const batch = (...entries) => stream(...entries.flatMap(([id, doc]) => [{index: {_id: id}}, doc]));
 const ASSETS = '{cmp_PublicImageAsset(where:{_itemMetadata:{key:{in:["one","two"]}}},orderBy:{_id:ASC}){items{Id Url Title Width}}}';
+
+test('CMS 12 ContentType populates both content roots and preserves source ownership', async t => {
+  const {request, server, gql} = await gateway(t);
+  const contentTypes = [
+    {name: 'Content', abstract: true, properties: [{name: 'Name', type: 'String', searchable: true}]},
+    {name: 'DemoPage', contentType: ['Content'], properties: []},
+  ];
+  assert.equal((await request('/contenttype', {method: 'POST', body: {contentTypes, useTypedFieldNames: false}})).status, 200);
+  server.store.upsert('demo-page', {__typename: 'DemoPage', ContentType: ['Page', 'DemoPage', 'Content'], ContentLink: {WorkId: 1}, Name___searchable: 'Quartz Demo', Status: 'Published'});
+  for (const root of ['Content', '_Content']) assert.equal(success(await gql(`{${root}{total}}`), root).total, 1);
+  const other = {contentTypes: {Content: {properties: {}}, OtherAsset: {properties: strings(['Id'])}}};
+  assert.equal((await request('/api/content/v3/types?id=other', {method: 'PUT', body: other})).status, 200);
+  server.store.upsert('no-content-link', {__typename: 'DemoPage', _metadata: {types: []}, ContentType: ['OtherAsset']});
+  server.store.upsert('cms13-control', {__typename: 'DemoPage', _metadata: {types: ['DemoPage']}, ContentType: ['OtherAsset'], ContentLink: {WorkId: 2}});
+  assert.equal(success(await gql('{OtherAsset{total}}'), 'OtherAsset').total, 0);
+  assert.equal((await request('/api/content/v3/sources?id=other&mode=reset', {method: 'DELETE'})).status, 200);
+  assert.deepEqual(success(await gql('{Content{items{_id}}}'), 'Content').items, [{_id: 'demo-page'}]);
+});
 async function seed(t, options = {}) {
   const gw = await gateway(t, options);
   await gw.request('/api/content/v3/types', {method: 'PUT', body: MODEL});

@@ -50,6 +50,28 @@ test('explorer search uses GraphQL fulltext with all statuses and the new slot t
   assert.ok(next.includes('Pending item')); assert.match(next, /1 items/);
 });
 
+test('explorer type and search rows show CMS 12 top-level fields', async t => {
+  const {request, server} = await gateway(t);
+  server.store.upsert('cms12-demo-id', {
+    __typename: 'DemoPage', ContentType: ['Page', 'DemoPage', 'Content'], Name___searchable: 'Jasper Demo',
+    Status: 'Published', ContentLink: {WorkId: 34}, Changed: '2024-05-01T10:00:00Z',
+  });
+  server.store.upsert('cms13-control', {
+    __typename: 'DemoPage', _metadata: {types: ['DemoPage', '_Content']}, ContentType: ['DemoPage'],
+    Name___searchable: 'Jasper Control', ContentLink: {WorkId: 99}, Changed: '2023-01-01T10:00:00Z',
+  });
+  for (const query of ['type=DemoPage', 'q=jasper']) {
+    const response = await request(`/explorer?tenant=default&${query}`, {auth: null});
+    assert.match(response.data, /id=cms12-demo-id">Jasper Demo<\/a>/);
+    assert.match(response.data, /<td data-label="Status"><span class="badge neutral">Published<\/span><\/td>/);
+    assert.match(response.data, /<td data-label="Version">34<\/td>/);
+    assert.match(response.data, /<time datetime="2024-05-01T10:00:00\.000Z"/);
+    assert.match(response.data, /id=cms13-control">cms13-control<\/a>/);
+    assert.doesNotMatch(response.data, /Jasper Control|2023-01-01T10:00:00/);
+    if (query === 'q=jasper') assert.match(response.data, /id=cms12-demo-id">Jasper Demo<\/a><\/td><td data-label="Type">DemoPage<\/td>/);
+  }
+});
+
 test('explorer detail escapes values, links references and opens a working GraphiQL query by key', async t => {
   const {gw} = await seeded(t);
   const html = (await gw.request('/explorer?tenant=site-a&id=xss', {auth: null})).data;

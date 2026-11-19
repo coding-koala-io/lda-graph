@@ -14,6 +14,9 @@ export function mergeSourceModels(sources, onConflict = () => {}) {
   return model;
 }
 
+export const isCms12Document = doc => !doc._metadata?.types?.length && Array.isArray(doc.ContentType) &&
+  doc.ContentLink != null && typeof doc.ContentLink === 'object' && !Array.isArray(doc.ContentLink);
+
 /** Source membership uses the concrete type or the indexed type list. */
 export function documentHasType(doc, names) {
   return names.has(doc.__typename) || (doc._metadata?.types ?? []).some(type => names.has(type));
