@@ -25,8 +25,9 @@ export function documentTypeHierarchy(doc) {
   return doc.ContentType.includes('Content') ? [...doc.ContentType, '_Content'] : doc.ContentType;
 }
 
+/** Source membership uses the concrete type or the indexed type list. */
 export function documentHasType(doc, names) {
-  return names.has(doc.__typename) || documentTypeHierarchy(doc).some(type => names.has(type));
+  return names.has(doc.__typename) || (doc._metadata?.types ?? []).some(type => names.has(type));
 }
 
 /** Default definitions retain ownership of names shared with another source. */

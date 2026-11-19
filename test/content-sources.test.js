@@ -35,9 +35,13 @@ test('CMS 12 ContentType populates both content roots and Name is searchable', a
   for (const root of ['Content', '_Content']) assert.equal(success(await gql(`{${root}{total}}`), root).total, 1);
   const search = success(await gql('{_Content(where:{_fulltext:{match:"quartz"}}){items{_id}}}'), '_Content');
   assert.deepEqual(search.items, [{_id: 'demo-page'}]);
-  await request('/api/content/v3/types?id=other', {method: 'PUT', body: {contentTypes: {OtherAsset: {properties: strings(['Id'])}}}});
-  server.store.upsert('cms13-control', {__typename: 'DemoPage', _metadata: {types: []}, ContentType: ['OtherAsset']});
+  const other = {contentTypes: {Content: {properties: {}}, OtherAsset: {properties: strings(['Id'])}}};
+  assert.equal((await request('/api/content/v3/types?id=other', {method: 'PUT', body: other})).status, 200);
+  server.store.upsert('no-content-link', {__typename: 'DemoPage', _metadata: {types: []}, ContentType: ['OtherAsset']});
+  server.store.upsert('cms13-control', {__typename: 'DemoPage', _metadata: {types: ['DemoPage']}, ContentType: ['OtherAsset'], ContentLink: {WorkId: 2}});
   assert.equal(success(await gql('{OtherAsset{total}}'), 'OtherAsset').total, 0);
+  assert.equal((await request('/api/content/v3/sources?id=other&mode=reset', {method: 'DELETE'})).status, 200);
+  assert.deepEqual(success(await gql('{Content{items{_id}}}'), 'Content').items, [{_id: 'demo-page'}]);
 });
 async function seed(t, options = {}) {
   const gw = await gateway(t, options);
