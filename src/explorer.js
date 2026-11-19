@@ -24,7 +24,11 @@ const pageNumber = (params, total) => {
 };
 const pager = (params, {current, last}) => `<p>${current > 1 ? link(url(params, {page: current - 1}), 'Previous 50') : ''} ${current < last ? link(url(params, {page: current + 1}), 'Next 50') : ''}</p>`;
 const select = (name, label, values, current) => `<label>${e(label)}<br><select name="${name}"><option value="">All</option>${values.map(value => `<option value="${e(value)}"${value === current ? ' selected' : ''}>${e(value || '(none)')}</option>`).join('')}</select></label>`;
-const summary = doc => ({id: doc._id, type: doc.__typename ?? '', displayName: doc._metadata?.displayName, locale: doc._metadata?.locale ?? '', status: doc._metadata?.status ?? '', version: doc._metadata?.version, lastModified: doc._metadata?.lastModified});
+const summary = (doc, stored = doc) => ({
+  id: doc._id, type: doc.__typename ?? '', displayName: doc._metadata?.displayName ?? stored.Name,
+  locale: doc._metadata?.locale ?? '', status: doc._metadata?.status ?? stored.Status ?? '',
+  version: doc._metadata?.version ?? stored.ContentLink?.WorkId, lastModified: doc._metadata?.lastModified ?? stored.Changed,
+});
 const itemRow = (base, doc, withType) => [link(url(base, {id: doc.id}), doc.displayName ?? doc.id), ...(withType ? [e(doc.type)] : []), e(doc.locale), badge(doc.status), e(doc.version ?? ''), timestamp(doc.lastModified)];
 
 export function explorerPickerHtml(registry) {
@@ -57,7 +61,7 @@ export async function explorerHtml(runtime, params) {
     const result = await graphql({schema: runtime.schemas[slot], source: SEARCH, variableValues: {q, limit: PAGE_SIZE, skip}, contextValue: {headers: {}, auth: 'basic', slot, variables: {q, limit: PAGE_SIZE, skip}}});
     if (result.errors?.length) return {status: 200, html: page(title('Search'), `${header}<p class="error" role="alert">${e(result.errors.map(error => error.message).join('; '))}</p>`)};
     const found = result.data._Content; const paging = pageNumber(params, found.total ?? 0);
-    const rows = (found.items ?? []).filter(Boolean).map(item => itemRow(base, summary(item), true));
+    const rows = (found.items ?? []).filter(Boolean).map(item => itemRow(base, summary(item, ownValue(docs, item._id)?.normalized), true));
     return {status: 200, html: page(title(`Search: ${q}`), `${header}<p>${(found.total ?? 0).toLocaleString('en-US')} matching items (all statuses) · page ${paging.current} of ${paging.last}</p>${table(['Display name', 'Type', 'Locale', 'Status', 'Version', 'Last modified'], rows)}${pager({...base, q}, paging)}`)};
   }
 
