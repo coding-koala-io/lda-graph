@@ -345,7 +345,8 @@ export function visibleRecord(record, context, store) {
       const permissions = ['r:Everyone:Read', ...roles.map(r => `r:${r}:Read`), ...(username ? [`u:${username}:Read`] : [])];
       if (!acl.some(r => permissions.includes(r))) return false;
     }
-    if ((!privilegedRead || headers['cg-include-expired'] === 'false') && meta.expired && Date.parse(meta.expired) < Date.now()) return false;
+    const expired = meta.expired ?? doc.StopPublish;
+    if ((!privilegedRead || headers['cg-include-expired'] === 'false') && expired && Date.parse(expired) < Date.now()) return false;
     return true;
   } catch (error) { if (store) warnBadRecord(store, record, error); return false; }
 }

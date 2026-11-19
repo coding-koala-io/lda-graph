@@ -5,6 +5,17 @@ import {document, index, ID, KEY, GUID} from './fixtures.js';
 import {matchFilter} from '../src/query-engine.js';
 import {normalizeDocument, comparable} from '../src/normalize.js';
 
+test('CMS 12 StopPublish hides expired documents from single-key reads', async t => {
+  const {server, seed, gql} = await gateway(t); await seed();
+  server.store.upsert('expired-demo', {
+    __typename: 'ArticlePage', ContentType: ['ArticlePage', 'Page', 'Content'], Name: 'Expired Demo',
+    Status: 'Published', StopPublish: '2020-01-01T00:00:00Z', _rbac: ['r:Everyone:Read'],
+  });
+  const query = '{ArticlePage(ids:["expired-demo"]){total}}';
+  assert.equal(success(await gql(query, {}, {auth: 'epi-single public'}), 'ArticlePage').total, 0);
+  assert.equal(success(await gql(query), 'ArticlePage').total, 1);
+});
+
 test('string operators, Unicode prefixes, wildcards, equality and GUID normalization', () => {
   const cases = [
     ['Quick Article', {eq: 'Quick Article'}, true], ['Quick Article', {eq: 'quick article'}, true],
