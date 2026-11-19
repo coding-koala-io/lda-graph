@@ -14,9 +14,16 @@ export function mergeSourceModels(sources, onConflict = () => {}) {
   return model;
 }
 
-/** Source membership uses the concrete type or the indexed type list. */
+/** CMS 12's Content base also belongs to the shared _Content root. */
+export function documentTypeHierarchy(doc) {
+  const types = doc._metadata?.types;
+  if (Array.isArray(types) && types.length) return types;
+  if (!Array.isArray(doc.ContentType)) return [];
+  return doc.ContentType.includes('Content') ? [...doc.ContentType, '_Content'] : doc.ContentType;
+}
+
 export function documentHasType(doc, names) {
-  return names.has(doc.__typename) || (doc._metadata?.types ?? []).some(type => names.has(type));
+  return names.has(doc.__typename) || documentTypeHierarchy(doc).some(type => names.has(type));
 }
 
 /** Default definitions retain ownership of names shared with another source. */

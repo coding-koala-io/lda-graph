@@ -23,6 +23,19 @@ const asset = (id, overrides = {}) => ({
 });
 const batch = (...entries) => stream(...entries.flatMap(([id, doc]) => [{index: {_id: id}}, doc]));
 const ASSETS = '{cmp_PublicImageAsset(where:{_itemMetadata:{key:{in:["one","two"]}}},orderBy:{_id:ASC}){items{Id Url Title Width}}}';
+
+test('CMS 12 ContentType populates both content roots and Name is searchable', async t => {
+  const {request, server, gql} = await gateway(t);
+  const contentTypes = [
+    {name: 'Content', abstract: true, properties: [{name: 'Name', type: 'String', searchable: true}]},
+    {name: 'DemoPage', contentType: ['Content'], properties: []},
+  ];
+  assert.equal((await request('/contenttype', {method: 'POST', body: {contentTypes, useTypedFieldNames: false}})).status, 200);
+  server.store.upsert('demo-page', {__typename: 'DemoPage', ContentType: ['Page', 'DemoPage', 'Content'], Name: 'Quartz Demo', Status: 'Published'});
+  for (const root of ['Content', '_Content']) assert.equal(success(await gql(`{${root}{total}}`), root).total, 1);
+  const search = success(await gql('{_Content(where:{_fulltext:{match:"quartz"}}){items{_id}}}'), '_Content');
+  assert.deepEqual(search.items, [{_id: 'demo-page'}]);
+});
 async function seed(t, options = {}) {
   const gw = await gateway(t, options);
   await gw.request('/api/content/v3/types', {method: 'PUT', body: MODEL});
