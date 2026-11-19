@@ -218,10 +218,12 @@ test('CMS 12 smooth rebuild stages types and documents before promoting them', a
   const query = '{ OrchardPage {items {_id}} }';
   assert.ok((await gql(query)).errors);
   assert.deepEqual(success(await gql(query, {}, {headers: {'cg-query-new': 'true'}}), 'OrchardPage').items, [{_id: 'orchard'}]);
+  assert.deepEqual((await request('/__debug/stats')).data.slots, {live: 1, new: 1, old: null});
   const accept = await request('/content/v2', {method: 'POST', headers: {'cg-use-new': 'true'}, body: {query: 'mutation { useNewAccountVersion(languages: ["en","sv"]) }'}});
   assert.equal(accept.status, 200);
   assert.equal(success(accept.data, 'useNewAccountVersion'), 'Done');
   assert.deepEqual(success(await gql(query), 'OrchardPage').items, [{_id: 'orchard'}]);
+  assert.deepEqual((await request('/__debug/stats')).data.slots, {live: 1, new: null, old: 1});
 });
 
 test('GraphQL parse/validation/coercion errors, operationName and variables string/null', async t => {
